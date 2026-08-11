@@ -106,14 +106,15 @@ export const CoursesView: React.FC<CoursesViewProps> = ({ courses, onNavigate })
                     <span className="text-slate-400 font-semibold">{course.level}</span>
                   </div>
 
-                {/* Title & Description */}
-                <div>
-                  <h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors">
-                    {course.title}
-                  </h3>
-                  <p className="text-xs text-slate-400 line-clamp-2 mt-2 leading-relaxed">
-                    {course.description}
-                  </p>
+                  {/* Title & Description */}
+                  <div>
+                    <h3 className="text-xl font-bold text-white group-hover:text-amber-400 transition-colors">
+                      {course.title}
+                    </h3>
+                    <p className="text-xs text-slate-400 line-clamp-2 mt-2 leading-relaxed">
+                      {course.description}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Metrics */}
