@@ -1,0 +1,6 @@
+{
+  "name": "Zenfotech AI Academy",
+  "description": "Premium AI Industry Learning, Examination & Certification Platform by Zenfotech Private Limited.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
