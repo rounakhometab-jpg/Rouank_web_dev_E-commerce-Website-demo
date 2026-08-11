@@ -193,7 +193,7 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950 box-border">
       {/* Navigation Header */}
       <Navbar
         currentView={currentView}
@@ -204,7 +204,7 @@ export default function Page() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-20 md:pb-12">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden pb-20 md:pb-12 z-[1] box-border">
         {currentView === 'home' && (
           <HomeView courses={courses} onNavigate={handleNavigate} />
         )}

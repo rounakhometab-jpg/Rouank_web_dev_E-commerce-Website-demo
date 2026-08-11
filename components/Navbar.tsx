@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Logo } from './Logo';
 import { User } from '../lib/types';
-import { Menu, X, Shield, ChevronDown, LogOut, Bell, BookOpen, Award, UserCheck, ShieldCheck } from 'lucide-react';
+import { Menu, X, Shield, ChevronDown, LogOut, BookOpen, Award, UserCheck, ShieldCheck, Settings, PlayCircle, User as UserIcon } from 'lucide-react';
 
 interface NavbarProps {
   currentView: string;
@@ -23,6 +23,36 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside or Escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setUserDropdownOpen(false);
+        setMobileMenuOpen(false);
+      }
+    };
+
+    if (userDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [userDropdownOpen]);
+
   const navLinks = [
     { id: 'home', label: 'Home' },
     { id: 'courses', label: 'Courses' },
@@ -36,21 +66,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleNavClick = (viewId: string) => {
     onNavigate(viewId);
     setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+    <header className="sticky top-0 z-[100] w-full max-w-full bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-md box-border">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between box-border">
         {/* Logo */}
         <button 
           onClick={() => handleNavClick('home')} 
-          className="hover:opacity-95 transition-opacity text-left focus:outline-none"
+          className="hover:opacity-95 transition-opacity text-left focus:outline-none shrink-0"
         >
           <Logo variant="light" size="md" showTagline={false} />
         </button>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
           {navLinks.map((link) => {
             const isActive = currentView === link.id;
             return (
@@ -74,89 +105,126 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Certificate Verification Badge/Button */}
           <button
             onClick={() => handleNavClick('verify')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 hover:bg-emerald-900/40 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 hover:bg-emerald-900/40 transition-colors shrink-0"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Verify Certificate</span>
           </button>
 
           {user ? (
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <button
+                type="button"
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm font-medium hover:bg-slate-750 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm font-medium hover:bg-slate-750 transition-colors focus:outline-none"
+                aria-expanded={userDropdownOpen}
               >
-                <div className="w-7 h-7 rounded-full bg-amber-500 text-slate-900 font-bold flex items-center justify-center text-xs">
-                  {user.name.charAt(0)}
+                <div className="w-7 h-7 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-xs shrink-0">
+                  {user.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="max-w-[100px] truncate">{user.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                <span className="max-w-[100px] truncate text-slate-100 font-semibold">{user.name}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0 ${
                   user.role === 'admin' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                 }`}>
                   {user.role}
                 </span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Dropdown menu */}
+              {/* Compact Dropdown menu */}
               {userDropdownOpen && (
                 <div 
-                  className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl py-2 z-50 text-sm"
-                  onMouseLeave={() => setUserDropdownOpen(false)}
+                  className="absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl py-2 z-[200] text-xs font-sans text-slate-200 divide-y divide-slate-800/80"
+                  style={{ width: '250px' }}
                 >
-                  <div className="px-4 py-2 border-b border-slate-700/80">
-                    <p className="font-semibold text-white truncate">{user.name}</p>
-                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-amber-500 text-slate-950 font-extrabold flex items-center justify-center text-xs shrink-0">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-white truncate text-xs">{user.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider ${
+                            user.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'
+                          }`}>
+                            {user.role}
+                          </span>
+                          <span className="text-[10px] text-slate-400 truncate">{user.email}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {user.role === 'admin' ? (
+                  <div className="py-1">
+                    {user.role === 'admin' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleNavClick('admin-dashboard')}
+                        className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-amber-400 hover:bg-slate-800 transition-colors font-medium"
+                      >
+                        <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Admin Control Panel</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('student-dashboard')}
+                          className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+                        >
+                          <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
+                          <span>Dashboard</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('student-dashboard')}
+                          className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+                        >
+                          <PlayCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span>My Courses</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('student-certificate')}
+                          className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+                        >
+                          <Award className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span>Certificates</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('student-profile')}
+                          className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+                        >
+                          <UserIcon className="w-4 h-4 text-purple-400 shrink-0" />
+                          <span>Profile</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNavClick('student-profile')}
+                          className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 hover:text-white transition-colors"
+                        >
+                          <Settings className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>Settings</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="py-1">
                     <button
+                      type="button"
                       onClick={() => {
-                        handleNavClick('admin-dashboard');
+                        onLogout();
                         setUserDropdownOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2.5 flex items-center gap-2 text-amber-400 hover:bg-slate-700/60 font-medium"
+                      className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 transition-colors font-semibold"
                     >
-                      <Shield className="w-4 h-4" />
-                      Admin Control Panel
+                      <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>Logout</span>
                     </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => {
-                          handleNavClick('student-dashboard');
-                          setUserDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-2.5 flex items-center gap-2 text-slate-200 hover:bg-slate-700/60"
-                      >
-                        <BookOpen className="w-4 h-4 text-blue-400" />
-                        Student LMS Dashboard
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleNavClick('student-certificate');
-                          setUserDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-2.5 flex items-center gap-2 text-slate-200 hover:bg-slate-700/60"
-                      >
-                        <Award className="w-4 h-4 text-amber-400" />
-                        My Certificate
-                      </button>
-                    </>
-                  )}
-
-                  <div className="border-t border-slate-700/80 my-1"></div>
-
-                  <button
-                    onClick={() => {
-                      onLogout();
-                      setUserDropdownOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-2 flex items-center gap-2 text-rose-400 hover:bg-slate-700/60 font-medium"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
-                  </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -179,18 +247,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Hamburger Button */}
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
           {user && (
             <button
               onClick={() => handleNavClick(user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard')}
-              className="p-2 rounded-lg bg-slate-800 text-amber-400 text-xs font-semibold"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 text-amber-400 text-xs font-semibold border border-slate-700"
             >
               Portal
             </button>
           )}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg bg-slate-800 text-slate-200 hover:text-white"
+            className="p-2 rounded-lg bg-slate-800 text-slate-200 hover:text-white border border-slate-700"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -199,7 +267,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 pt-2 pb-6 space-y-3">
+        <div className="lg:hidden bg-slate-900 border-b border-slate-800 px-4 pt-2 pb-6 space-y-3 z-[400]">
           <div className="space-y-1 border-b border-slate-800 pb-3">
             {navLinks.map((link) => (
               <button

@@ -17,11 +17,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   const [activeTab, setActiveTab] = useState<'dashboard' | 'progress' | 'modules' | 'exam' | 'certificate'>('dashboard');
 
   return (
-    <section className="relative bg-slate-950 text-white overflow-hidden pt-12 pb-20 border-b border-slate-800">
+    <section className="relative w-full max-w-full bg-slate-950 text-white overflow-hidden pt-12 pb-20 border-b border-slate-800 box-border">
       {/* Background Subtle Gradient & Grid Patterns */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-25 pointer-events-none"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-[1] box-border">
         
         {/* Top Announcement Chip */}
         <div className="flex justify-center mb-6">
@@ -36,7 +36,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
         {/* Hero Headline & Subheading */}
         <div className="text-center max-w-4xl mx-auto space-y-6">
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.15] break-words">
             Master AI. <span className="bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">Build the Future.</span>
           </h1>
 
