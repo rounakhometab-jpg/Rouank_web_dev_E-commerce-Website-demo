@@ -443,6 +443,9 @@ export const INITIAL_EXAM: Exam = {
   durationMinutes: 30,
   totalQuestions: 20,
   passingPercentage: 60,
+  status: 'published',
+  createdAt: '2026-01-10T10:00:00Z',
+  updatedAt: '2026-01-10T10:00:00Z',
   questions: [
     {
       id: 'eq_01',

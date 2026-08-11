@@ -24,6 +24,12 @@ import { AboutView } from '../views/AboutView';
 import { ContactView } from '../views/ContactView';
 import { FAQView } from '../views/FAQView';
 import { HowItWorksView } from '../views/HowItWorksView';
+import { ShopView } from '../views/ShopView';
+import { ProductDetailsView } from '../views/ProductDetailsView';
+import { CartView } from '../views/CartView';
+import { CheckoutView as ShopCheckoutView } from '../views/CheckoutView';
+import { WishlistView } from '../views/WishlistView';
+import { AdminShopView } from '../views/AdminShopView';
 import { ExamAttempt } from '../lib/types';
 
 export default function Page() {
@@ -35,12 +41,22 @@ export default function Page() {
     orders,
     notifications,
     exam,
+    exams = [],
+    examAttempts = [],
     students,
     login,
     register,
     logout,
     markLessonComplete,
     submitExam,
+    upsertExam,
+    deleteExam,
+    toggleExamStatus,
+    addQuestionToExam,
+    updateQuestionInExam,
+    deleteQuestionFromExam,
+    duplicateQuestionInExam,
+    deleteExamAttempt,
     processDemoPayment,
     verifyCertificate,
     markNotificationRead,
@@ -67,6 +83,8 @@ export default function Page() {
 
   const [currentView, setCurrentView] = useState<string>('home');
   const [selectedCourseId, setSelectedCourseId] = useState<string>('ai-industry-certification');
+  const [selectedProductId, setSelectedProductId] = useState<string>('book_01');
+  const [shopCheckoutParams, setShopCheckoutParams] = useState<any>(null);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [currentExamAttempt, setCurrentExamAttempt] = useState<ExamAttempt | null>(null);
@@ -85,11 +103,29 @@ export default function Page() {
   const handleCloseToast = () => setToast(null);
 
   // Central Router Handler
-  const handleNavigate = (view: string, param?: string) => {
+  const handleNavigate = (view: string, param?: any) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (param && (view === 'course-details' || view === 'checkout' || view === 'course-player')) {
-      setSelectedCourseId(param);
+      if (typeof param === 'string') {
+        setSelectedCourseId(param);
+      } else if (param?.courseId) {
+        setSelectedCourseId(param.courseId);
+      }
+    }
+
+    if (view === 'shop-product' && param) {
+      if (typeof param === 'string') {
+        setSelectedProductId(param);
+      } else if (param?.productId) {
+        setSelectedProductId(param.productId);
+      }
+    }
+
+    if (view === 'checkout' && typeof param === 'object' && param !== null) {
+      setShopCheckoutParams(param);
+      setCurrentView('shop-checkout');
+      return;
     }
 
     if (view === 'verify' && param) {
@@ -284,16 +320,19 @@ export default function Page() {
           />
         )}
 
-        {currentView === 'student-live-exam' && (
-          <LiveExamView
-            exam={exam}
-            onSubmitExam={submitExam}
-            onFinishExam={(attempt) => {
-              setCurrentExamAttempt(attempt);
-              handleNavigate('student-exam-result');
-            }}
-          />
-        )}
+        {(currentView === 'student-live-exam' || currentView === 'student-exam-live') && (() => {
+          const activeExam = (selectedCourseId ? exams.find(e => e.id === selectedCourseId || e.courseId === selectedCourseId) : null) || exam || exams[0];
+          return (
+            <LiveExamView
+              exam={activeExam}
+              onSubmitExam={submitExam}
+              onFinishExam={(attempt) => {
+                setCurrentExamAttempt(attempt);
+                handleNavigate('student-exam-result');
+              }}
+            />
+          );
+        })()}
 
         {currentView === 'student-exam-result' && (
           <ExamResultView
@@ -318,8 +357,11 @@ export default function Page() {
             students={students}
             courses={courses}
             exam={exam}
+            exams={exams}
+            examAttempts={examAttempts}
             orders={orders}
             notifications={notifications}
+            progress={progress}
             onAddQuestion={addQuestion}
             onDeleteQuestion={deleteQuestion}
             onBroadcastNotif={(title, msg) => {
@@ -340,6 +382,14 @@ export default function Page() {
             }}
             onNavigate={handleNavigate}
             onShowToast={showToast}
+            onUpsertExam={upsertExam}
+            onDeleteExam={deleteExam}
+            onToggleExamStatus={toggleExamStatus}
+            onAddQuestionToExam={addQuestionToExam}
+            onUpdateQuestionInExam={updateQuestionInExam}
+            onDeleteQuestionFromExam={deleteQuestionFromExam}
+            onDuplicateQuestionInExam={duplicateQuestionInExam}
+            onDeleteExamAttempt={deleteExamAttempt}
             onUpsertCourse={upsertCourse}
             onDeleteCourse={deleteCourse}
             onDuplicateCourse={duplicateCourse}
@@ -373,6 +423,48 @@ export default function Page() {
 
         {currentView === 'how-it-works' && (
           <HowItWorksView onNavigate={handleNavigate} />
+        )}
+
+        {/* E-Commerce Shop System Views */}
+        {currentView === 'shop' && (
+          <ShopView onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'shop-product' && (
+          <ProductDetailsView productId={selectedProductId} onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'cart' && (
+          <CartView onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'shop-checkout' && (
+          <ShopCheckoutView checkoutData={shopCheckoutParams} onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'wishlist' && (
+          <WishlistView onNavigate={handleNavigate} />
+        )}
+
+        {/* Admin Shop Views */}
+        {currentView === 'admin-shop-products' && user?.role === 'admin' && (
+          <AdminShopView initialTab="products" onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'admin-shop-categories' && user?.role === 'admin' && (
+          <AdminShopView initialTab="categories" onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'admin-shop-orders' && user?.role === 'admin' && (
+          <AdminShopView initialTab="orders" onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'admin-shop-coupons' && user?.role === 'admin' && (
+          <AdminShopView initialTab="coupons" onNavigate={handleNavigate} />
+        )}
+
+        {currentView === 'admin-shop-inventory' && user?.role === 'admin' && (
+          <AdminShopView initialTab="inventory" onNavigate={handleNavigate} />
         )}
       </main>
 

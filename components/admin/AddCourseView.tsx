@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Course } from '../../lib/types';
+import { SafeImage } from '../ui/SafeImage';
+import { ImageCropperModal } from '../ui/ImageCropperModal';
 import {
   BookOpen,
   Image as ImageIcon,
@@ -18,7 +20,9 @@ import {
   DollarSign,
   Clock,
   Layers,
-  Search
+  Search,
+  Crop,
+  RefreshCw
 } from 'lucide-react';
 
 interface AddCourseViewProps {
@@ -42,9 +46,12 @@ export const AddCourseView: React.FC<AddCourseViewProps> = ({
   const [level, setLevel] = useState<Course['level']>(editingCourse?.level || 'Industry Ready');
   const [language, setLanguage] = useState(editingCourse?.language || 'English');
 
-  // SECTION B: THUMBNAIL
+  // SECTION B: THUMBNAIL & CROPPING
   const [thumbnailUrl, setThumbnailUrl] = useState(editingCourse?.thumbnail || '');
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(editingCourse?.thumbnail || null);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // SECTION C: COURSE DETAILS
   const [learningHours, setLearningHours] = useState(editingCourse?.learningHours || 120);
@@ -105,10 +112,18 @@ export const AddCourseView: React.FC<AddCourseViewProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const objectUrl = URL.createObjectURL(file);
-      setThumbnailPreview(objectUrl);
-      setThumbnailUrl(objectUrl);
-      onShowToast('Thumbnail Uploaded', `${file.name} loaded successfully (Demo Storage)`, 'info');
+      setImageToCrop(objectUrl);
+      setCropperOpen(true);
+      onShowToast('Image Selected', `Crop image to 16:9 ratio before saving`, 'info');
     }
+  };
+
+  const handleCropSave = (croppedDataUrl: string) => {
+    setThumbnailPreview(croppedDataUrl);
+    setThumbnailUrl(croppedDataUrl);
+    setCropperOpen(false);
+    setImageToCrop(null);
+    onShowToast('Thumbnail Cropped & Saved', 'Course image updated to 16:9 ratio', 'success');
   };
 
   const addObjective = () => setObjectives([...objectives, '']);
@@ -356,19 +371,25 @@ export const AddCourseView: React.FC<AddCourseViewProps> = ({
 
       {/* SECTION B — COURSE THUMBNAIL */}
       <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-        <h3 className="text-sm font-bold text-white border-b border-slate-800 pb-3 flex items-center gap-2">
-          <ImageIcon className="w-4 h-4 text-amber-400" />
-          <span>Section B — Course Thumbnail</span>
-        </h3>
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-amber-400" />
+            <span>Section B — Course Thumbnail</span>
+          </h3>
+          <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
+            ASPECT RATIO: 16:9 • RECOMMENDED: 1920 × 1080 px
+          </span>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           <div className="md:col-span-7 space-y-3">
-            <p className="text-slate-400 text-xs">
-              Upload course cover image (Recommended 16:9 ratio, PNG/JPG/WEBP). Uploaded image renders in preview mode immediately.
+            <p className="text-slate-400 text-xs leading-relaxed">
+              Upload course cover image. All thumbnails are automatically formatted and cropped to a standard <strong>16:9 aspect ratio</strong> (1920×1080 px) for crisp visual consistency.
             </p>
 
             <div className="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-2xl p-6 text-center space-y-2 bg-slate-950/50 cursor-pointer transition-colors relative">
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleThumbnailUpload}
@@ -376,52 +397,105 @@ export const AddCourseView: React.FC<AddCourseViewProps> = ({
               />
               <Upload className="w-8 h-8 text-amber-400 mx-auto" />
               <p className="font-semibold text-white">Click or drag & drop thumbnail image file</p>
-              <p className="text-[10px] text-slate-500">Supports PNG, JPG, JPEG, WEBP up to 10MB</p>
+              <p className="text-[10px] text-slate-500">Supports PNG, JPG, JPEG, WEBP up to 10MB (16:9 Ratio Auto-Cropper)</p>
             </div>
 
             <div className="space-y-1 pt-1">
               <label className="block text-slate-400 text-[11px] font-semibold">Or Direct Image URL</label>
-              <input
-                type="url"
-                placeholder="https://images.unsplash.com/photo-..."
-                value={thumbnailUrl}
-                onChange={(e) => {
-                  setThumbnailUrl(e.target.value);
-                  setThumbnailPreview(e.target.value);
-                }}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs font-mono"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/photo-..."
+                  value={thumbnailUrl}
+                  onChange={(e) => {
+                    setThumbnailUrl(e.target.value);
+                    setThumbnailPreview(e.target.value);
+                  }}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs font-mono"
+                />
+                {thumbnailPreview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageToCrop(thumbnailPreview);
+                      setCropperOpen(true);
+                    }}
+                    className="px-3 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl font-bold text-xs hover:bg-amber-500/30 flex items-center gap-1"
+                  >
+                    <Crop className="w-3.5 h-3.5" /> Crop 16:9
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="md:col-span-5 bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2 text-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Thumbnail Live Preview</span>
+          <div className="md:col-span-5 bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 text-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">16:9 Thumbnail Live Preview</span>
             {thumbnailPreview ? (
-              <div className="space-y-2">
-                <img
+              <div className="space-y-3">
+                <SafeImage
                   src={thumbnailPreview}
-                  alt="Course Thumbnail Preview"
-                  className="w-full h-36 object-cover rounded-xl border border-slate-800"
+                  alt={title || 'Course Thumbnail'}
+                  type="course"
+                  aspectRatio="16:9"
+                  containerClassName="rounded-xl border border-slate-800"
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setThumbnailPreview(null);
-                    setThumbnailUrl('');
-                  }}
-                  className="text-rose-400 hover:text-rose-300 font-bold text-[10px] underline"
-                >
-                  Remove Thumbnail
-                </button>
+
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageToCrop(thumbnailPreview);
+                      setCropperOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 font-bold text-[11px] flex items-center gap-1"
+                  >
+                    <Crop className="w-3 h-3" /> Crop / Adjust
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-[11px] flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setThumbnailPreview(null);
+                      setThumbnailUrl('');
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-800/50 font-bold text-[11px] flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" /> Remove
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="w-full h-36 bg-slate-900 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-slate-600 gap-2">
-                <ImageIcon className="w-8 h-8" />
-                <span>No Thumbnail Loaded</span>
+              <div className="w-full aspect-[16/9] bg-slate-900 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-slate-600 gap-2">
+                <ImageIcon className="w-8 h-8 text-slate-600" />
+                <span className="text-xs">No Thumbnail Loaded (16:9)</span>
               </div>
             )}
           </div>
         </div>
+
+        {/* Cropper Modal Component */}
+        <ImageCropperModal
+          isOpen={cropperOpen}
+          imageSrc={imageToCrop}
+          aspectRatio="16:9"
+          title="Crop Course Thumbnail (16:9)"
+          recommendedResolution="1920 × 1080 px"
+          onCropSave={handleCropSave}
+          onReplaceImage={() => fileInputRef.current?.click()}
+          onRemoveImage={() => {
+            setThumbnailPreview(null);
+            setThumbnailUrl('');
+            setCropperOpen(false);
+          }}
+          onClose={() => setCropperOpen(false)}
+        />
       </div>
 
       {/* SECTION C — COURSE DETAILS & PRICING */}

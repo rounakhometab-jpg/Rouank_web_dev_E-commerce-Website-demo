@@ -3,11 +3,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Logo } from './Logo';
 import { User } from '../lib/types';
-import { Menu, X, Shield, ChevronDown, LogOut, BookOpen, Award, UserCheck, ShieldCheck, Settings, PlayCircle, User as UserIcon } from 'lucide-react';
+import { useAppStore } from '../lib/store';
+import { Menu, X, Shield, ChevronDown, LogOut, BookOpen, Award, UserCheck, ShieldCheck, Settings, PlayCircle, User as UserIcon, ShoppingBag, Heart, Sparkles, Tag, Layers, Package, Book } from 'lucide-react';
 
 interface NavbarProps {
   currentView: string;
-  onNavigate: (view: string) => void;
+  onNavigate: (view: string, params?: any) => void;
   user: User | null;
   onLogout: () => void;
   unreadCount?: number;
@@ -22,25 +23,34 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
+
+  const { cart, wishlist } = useAppStore();
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const shopDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside or Escape key
+  // Close dropdowns on click outside or Escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setUserDropdownOpen(false);
+      }
+      if (shopDropdownRef.current && !shopDropdownRef.current.contains(event.target as Node)) {
+        setShopDropdownOpen(false);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setUserDropdownOpen(false);
+        setShopDropdownOpen(false);
         setMobileMenuOpen(false);
       }
     };
 
-    if (userDropdownOpen) {
+    if (userDropdownOpen || shopDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
     }
@@ -51,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [userDropdownOpen]);
+  }, [userDropdownOpen, shopDropdownOpen]);
 
   const navLinks = [
     { id: 'home', label: 'Home' },
@@ -63,10 +73,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'contact', label: 'Contact' },
   ];
 
-  const handleNavClick = (viewId: string) => {
-    onNavigate(viewId);
+  const shopItems = [
+    { label: 'All Products', category: 'all', icon: Package, desc: 'Browse full store' },
+    { label: 'Books', category: 'books', icon: Book, desc: 'Official textbooks & handbooks' },
+    { label: 'Study Material', category: 'study-material', icon: Layers, desc: 'Notes, workbooks & flashcards' },
+    { label: 'Accessories', category: 'accessories', icon: Sparkles, desc: 'Desk pads & USB drives' },
+    { label: 'Course Kits', category: 'course-kits', icon: ShoppingBag, desc: 'All-in-one box bundles' },
+    { label: 'Offers', category: 'offers', icon: Tag, desc: 'Special discounts & bundles' },
+  ];
+
+  const handleNavClick = (viewId: string, params?: any) => {
+    onNavigate(viewId, params);
     setMobileMenuOpen(false);
     setUserDropdownOpen(false);
+    setShopDropdownOpen(false);
   };
 
   return (
@@ -82,7 +102,71 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Desktop Navigation Links */}
         <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
-          {navLinks.map((link) => {
+          <button
+            onClick={() => handleNavClick('home')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              currentView === 'home'
+                ? 'text-amber-400 bg-slate-800/80 font-semibold'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            Home
+          </button>
+
+          <button
+            onClick={() => handleNavClick('courses')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              currentView === 'courses'
+                ? 'text-amber-400 bg-slate-800/80 font-semibold'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            Courses
+          </button>
+
+          {/* SHOP DROPDOWN */}
+          <div className="relative" ref={shopDropdownRef}>
+            <button
+              onClick={() => setShopDropdownOpen(!shopDropdownOpen)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                currentView.startsWith('shop') || currentView === 'cart' || currentView === 'checkout'
+                  ? 'text-amber-400 bg-slate-800/90 shadow-sm'
+                  : 'text-slate-200 hover:text-white hover:bg-slate-800/50'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 text-amber-400" />
+              <span>SHOP</span>
+              <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase border border-amber-500/30">New</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${shopDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {shopDropdownOpen && (
+              <div className="absolute left-0 top-full mt-2 w-72 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl py-2 z-[200] divide-y divide-slate-800/80 text-slate-100">
+                <div className="p-2 space-y-1">
+                  {shopItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.category}
+                        onClick={() => handleNavClick('shop', { category: item.category })}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs hover:bg-slate-800/90 hover:text-amber-400 transition-colors group"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/60 group-hover:border-amber-500/40 group-hover:bg-amber-500/10 flex items-center justify-center shrink-0 text-amber-400 transition-colors">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-white group-hover:text-amber-400 transition-colors">{item.label}</p>
+                          <p className="text-[11px] text-slate-400">{item.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {navLinks.slice(2).map((link) => {
             const isActive = currentView === link.id;
             return (
               <button
@@ -101,14 +185,45 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Desktop Right Action Area */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-2.5">
+          {/* Wishlist Button */}
+          <button
+            onClick={() => handleNavClick('wishlist')}
+            className="relative p-2 rounded-xl text-slate-300 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+            title="My Wishlist"
+          >
+            <Heart className="w-5 h-5" />
+            {wishlist.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white font-extrabold text-[10px] rounded-full flex items-center justify-center shadow-md">
+                {wishlist.length}
+              </span>
+            )}
+          </button>
+
+          {/* Cart Button */}
+          <button
+            onClick={() => handleNavClick('cart')}
+            className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/80 hover:bg-slate-750 text-slate-100 font-semibold text-xs transition-all hover:border-amber-500/40"
+            title="Shopping Cart"
+          >
+            <ShoppingBag className="w-4 h-4 text-amber-400" />
+            <span className="hidden xl:inline">Cart</span>
+            {cartCount > 0 ? (
+              <span className="bg-amber-500 text-slate-950 font-black text-[11px] px-1.5 py-0.2 rounded-full min-w-[20px] text-center">
+                {cartCount}
+              </span>
+            ) : (
+              <span className="text-slate-400 text-[11px]">0</span>
+            )}
+          </button>
+
           {/* Certificate Verification Badge/Button */}
           <button
             onClick={() => handleNavClick('verify')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 hover:bg-emerald-900/40 transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 hover:bg-emerald-900/40 transition-colors shrink-0"
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>Verify Certificate</span>
+            <span>Verify</span>
           </button>
 
           {user ? (
@@ -246,12 +361,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Mobile Hamburger Button */}
+        {/* Mobile Hamburger Button & Quick Actions */}
         <div className="flex items-center gap-2 lg:hidden">
+          <button
+            onClick={() => handleNavClick('cart')}
+            className="relative p-2 rounded-lg bg-slate-800 text-slate-200 border border-slate-700"
+            title="Cart"
+          >
+            <ShoppingBag className="w-5 h-5 text-amber-400" />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-slate-950 font-black text-[10px] rounded-full flex items-center justify-center">
+                {cartCount}
+              </span>
+            )}
+          </button>
           {user && (
             <button
               onClick={() => handleNavClick(user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard')}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 text-amber-400 text-xs font-semibold border border-slate-700"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-400 text-xs font-semibold border border-slate-700"
             >
               Portal
             </button>
@@ -269,7 +396,45 @@ export const Navbar: React.FC<NavbarProps> = ({
       {mobileMenuOpen && (
         <div className="lg:hidden bg-slate-900 border-b border-slate-800 px-4 pt-2 pb-6 space-y-3 z-[400]">
           <div className="space-y-1 border-b border-slate-800 pb-3">
-            {navLinks.map((link) => (
+            <button
+              onClick={() => handleNavClick('home')}
+              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium ${
+                currentView === 'home' ? 'text-amber-400 bg-slate-800 font-semibold' : 'text-slate-300 hover:bg-slate-800/60'
+              }`}
+            >
+              Home
+            </button>
+
+            <button
+              onClick={() => handleNavClick('courses')}
+              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium ${
+                currentView === 'courses' ? 'text-amber-400 bg-slate-800 font-semibold' : 'text-slate-300 hover:bg-slate-800/60'
+              }`}
+            >
+              Courses
+            </button>
+
+            {/* SHOP MOBILE SECTION */}
+            <div className="py-2 px-3 bg-slate-800/50 rounded-xl border border-slate-700/50 space-y-1 my-1">
+              <div className="flex items-center justify-between py-1 border-b border-slate-700/50 mb-1">
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <ShoppingBag className="w-3.5 h-3.5" /> SHOP STORE
+                </span>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded font-bold">New</span>
+              </div>
+              {shopItems.map((s) => (
+                <button
+                  key={s.category}
+                  onClick={() => handleNavClick('shop', { category: s.category })}
+                  className="w-full text-left py-1.5 text-xs text-slate-300 hover:text-amber-400 flex items-center justify-between"
+                >
+                  <span>{s.label}</span>
+                  <span className="text-[10px] text-slate-500">{s.desc}</span>
+                </button>
+              ))}
+            </div>
+
+            {navLinks.slice(2).map((link) => (
               <button
                 key={link.id}
                 onClick={() => handleNavClick(link.id)}
@@ -282,6 +447,31 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {link.label}
               </button>
             ))}
+
+            <button
+              onClick={() => handleNavClick('cart')}
+              className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-amber-400 flex items-center justify-between hover:bg-slate-800/60"
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4" />
+                <span>Shopping Cart</span>
+              </div>
+              <span className="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full">
+                {cartCount} items
+              </span>
+            </button>
+
+            <button
+              onClick={() => handleNavClick('wishlist')}
+              className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-rose-400 flex items-center justify-between hover:bg-slate-800/60"
+            >
+              <div className="flex items-center gap-2">
+                <Heart className="w-4 h-4" />
+                <span>Wishlist</span>
+              </div>
+              <span className="text-slate-400 text-xs">{wishlist.length}</span>
+            </button>
+
             <button
               onClick={() => handleNavClick('verify')}
               className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-emerald-400 flex items-center gap-2 hover:bg-slate-800/60"

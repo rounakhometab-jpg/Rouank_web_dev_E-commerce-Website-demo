@@ -3,6 +3,7 @@
 import React from 'react';
 import { HeroSection } from '../components/HeroSection';
 import { Course } from '../lib/types';
+import { SafeImage } from '../components/ui/SafeImage';
 import { BookOpen, ShieldCheck, Cpu, Smartphone, Award, CheckCircle2, ChevronRight, Star, Clock, Zap, ArrowRight, HelpCircle } from 'lucide-react';
 
 interface HomeViewProps {

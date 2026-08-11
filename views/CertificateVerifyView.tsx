@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Certificate } from '../lib/types';
+import { generateCertificatePDF } from '../lib/certificatePdfGenerator';
 import { ShieldCheck, Search, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 
 interface CertificateVerifyViewProps {
@@ -107,7 +108,13 @@ export const CertificateVerifyView: React.FC<CertificateVerifyViewProps> = ({
                 </div>
               </div>
 
-              <div className="text-center pt-2">
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => generateCertificatePDF(searchResult)}
+                  className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg"
+                >
+                  Download Certificate PDF 📥
+                </button>
                 <button
                   onClick={() => onNavigate('student-certificate')}
                   className="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-bold border border-slate-700"

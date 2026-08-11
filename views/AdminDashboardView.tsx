@@ -1,13 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, Course, Exam, Order, AppNotification, Lesson, Module } from '../lib/types';
+import { User, Course, Exam, ExamQuestion, ExamAttempt, Order, AppNotification, Lesson, Module, StudentProgress } from '../lib/types';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { CourseManagementView } from '../components/admin/CourseManagementView';
 import { AddCourseView } from '../components/admin/AddCourseView';
 import { CourseDetailAdminView } from '../components/admin/CourseDetailAdminView';
 import { LessonManagementView } from '../components/admin/LessonManagementView';
 import { AddLessonView } from '../components/admin/AddLessonView';
+import { ExamManagementView } from '../components/admin/ExamManagementView';
+import { CreateExamView } from '../components/admin/CreateExamView';
+import { QuestionBuilderView } from '../components/admin/QuestionBuilderView';
+import { AdminResultsView } from '../components/admin/AdminResultsView';
+import { ModuleManagementView } from '../components/admin/ModuleManagementView';
+import { LessonResourcesManagementView } from '../components/admin/LessonResourcesManagementView';
+import { AdminCertificatesView } from '../components/admin/AdminCertificatesView';
 import {
   Shield,
   Users,
@@ -30,6 +37,8 @@ interface AdminDashboardViewProps {
   students: User[];
   courses: Course[];
   exam: Exam;
+  exams: Exam[];
+  examAttempts: ExamAttempt[];
   orders: Order[];
   notifications: AppNotification[];
   onAddQuestion: (q: Omit<Exam['questions'][0], 'id'>) => void;
@@ -41,12 +50,22 @@ interface AdminDashboardViewProps {
   onNavigate: (view: string, param?: string) => void;
   onShowToast: (title: string, message?: string, type?: 'success' | 'info' | 'error') => void;
 
+  // Exam CRUD
+  onUpsertExam: (examData: Partial<Exam> & { title: string; courseId: string }) => Exam;
+  onDeleteExam: (examId: string) => void;
+  onToggleExamStatus: (examId: string) => void;
+  onAddQuestionToExam: (examId: string, question: Omit<ExamQuestion, 'id'>) => void;
+  onUpdateQuestionInExam: (examId: string, questionId: string, question: Partial<ExamQuestion>) => void;
+  onDeleteQuestionFromExam: (examId: string, questionId: string) => void;
+  onDuplicateQuestionInExam: (examId: string, questionId: string) => void;
+  onDeleteExamAttempt: (attemptId: string) => void;
+
   // Course, Module & Lesson CRUD from store
   onUpsertCourse: (course: Course) => void;
   onDeleteCourse: (courseId: string) => void;
   onDuplicateCourse: (courseId: string) => void;
   onToggleCourseStatus: (courseId: string) => void;
-  onAddOrUpdateModule: (courseId: string, moduleData: { title: string; description: string; estimatedHours?: number }) => void;
+  onAddOrUpdateModule: (courseId: string, moduleData: Partial<Module> & { title: string }) => void;
   onDeleteModule: (courseId: string, moduleId: string) => void;
   onReorderModules: (courseId: string, moduleIds: string[]) => void;
   onAddOrUpdateLesson: (courseId: string, moduleId: string, lessonData: Partial<Lesson> & { title: string }) => void;
@@ -55,6 +74,7 @@ interface AdminDashboardViewProps {
   onToggleLessonStatus: (courseId: string, moduleId: string, lessonId: string) => void;
   onImportCourses: (json: string) => void;
   onExportCourses: () => string;
+  progress?: StudentProgress;
 }
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
@@ -62,8 +82,25 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   students,
   courses,
   exam,
+  exams = [],
+  examAttempts = [],
   orders,
   notifications,
+  progress = {
+    courseId: 'ai-industry-certification',
+    completedLessonIds: [],
+    completedQuizIds: {},
+    certificate: {
+      id: 'ZAA-2026-000001',
+      studentId: 'usr_student_01',
+      studentName: 'Rahul Verma',
+      courseTitle: 'AI Industry Certification Program',
+      issueDate: '11 August 2026',
+      status: 'valid',
+      scorePercentage: 82,
+      verificationUrl: 'https://zenfotech.com/verify'
+    }
+  },
   onAddQuestion,
   onDeleteQuestion,
   onBroadcastNotif,
@@ -72,6 +109,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onResetDemo,
   onNavigate,
   onShowToast,
+  onUpsertExam,
+  onDeleteExam,
+  onToggleExamStatus,
+  onAddQuestionToExam,
+  onUpdateQuestionInExam,
+  onDeleteQuestionFromExam,
+  onDuplicateQuestionInExam,
+  onDeleteExamAttempt,
   onUpsertCourse,
   onDeleteCourse,
   onDuplicateCourse,
@@ -93,6 +138,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [targetModuleId, setTargetModuleId] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  // Exam management state
+  const [editingExamObj, setEditingExamObj] = useState<Exam | null>(null);
+  const [selectedExamIdForQuestions, setSelectedExamIdForQuestions] = useState<string | null>(null);
+
   // Exam question form state
   const [newQText, setNewQText] = useState('');
   const [optA, setOptA] = useState('');
@@ -113,6 +162,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     }
     if (tab === 'add-lesson') {
       setEditingLessonObj(null);
+    }
+    if (tab === 'create-exam') {
+      setEditingExamObj(null);
+    }
+    if (tab === 'question-builder' && param) {
+      setSelectedExamIdForQuestions(param);
     }
   };
 
@@ -371,10 +426,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {/* LESSON RESOURCES */}
         {activeTab === 'lesson-resources' && (
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4 text-xs">
-            <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">Lesson Document & PDF Resources</h3>
-            <p className="text-slate-400">Manage digital downloads and whitepapers attached to lessons.</p>
-          </div>
+          <LessonResourcesManagementView
+            courses={courses}
+            onAddOrUpdateLesson={onAddOrUpdateLesson}
+            onShowToast={onShowToast}
+          />
         )}
 
         {/* COURSE CATEGORIES */}
@@ -393,10 +449,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {/* MODULES TAB */}
         {activeTab === 'modules' && (
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4 text-xs">
-            <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">All Modules Directory</h3>
-            <p className="text-slate-400">Total modules across all courses: {courses.reduce((sum, c) => sum + (c.modules?.length || 0), 0)}</p>
-          </div>
+          <ModuleManagementView
+            courses={courses}
+            initialCourseId={selectedCourseParam || undefined}
+            onAddOrUpdateModule={onAddOrUpdateModule}
+            onDeleteModule={onDeleteModule}
+            onReorderModules={onReorderModules}
+            onNavigate={(view, param) => handleSelectTab(view, param)}
+            onShowToast={onShowToast}
+          />
         )}
 
         {/* STUDENTS MANAGEMENT */}
@@ -444,188 +505,84 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
         )}
 
-        {/* EXAMS, QUESTIONS, RESULTS, CERTIFICATES, PAYMENTS, ORDERS, NOTIFICATIONS, REPORTS, SETTINGS */}
-        {(activeTab === 'exams' || activeTab === 'exam') && (
-          <div className="space-y-6 text-xs">
-            {/* Add Question Form */}
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (!newQText || !optA || !optB || !optC || !optD) return;
-              onAddQuestion({
-                question: newQText,
-                options: [optA, optB, optC, optD],
-                correctAnswer: correctOptIdx,
-                explanation: 'Added by Admin Manager.',
-                topic: 'Admin Custom Topic'
-              });
-              setNewQText(''); setOptA(''); setOptB(''); setOptC(''); setOptD('');
-              onShowToast('Question Added', 'New MCQ added to Question Bank', 'success');
-            }} className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-              <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3 flex items-center gap-2">
-                <Plus className="w-4 h-4 text-amber-400" />
-                <span>Add MCQ to Question Bank</span>
-              </h3>
-
-              <div className="space-y-2">
-                <label className="text-slate-300 font-semibold block">Question Text</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter question statement..."
-                  value={newQText}
-                  onChange={(e) => setNewQText(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-400 font-semibold block mb-1">Option A</label>
-                  <input type="text" required value={optA} onChange={(e) => setOptA(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" />
-                </div>
-                <div>
-                  <label className="text-slate-400 font-semibold block mb-1">Option B</label>
-                  <input type="text" required value={optB} onChange={(e) => setOptB(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" />
-                </div>
-                <div>
-                  <label className="text-slate-400 font-semibold block mb-1">Option C</label>
-                  <input type="text" required value={optC} onChange={(e) => setOptC(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" />
-                </div>
-                <div>
-                  <label className="text-slate-400 font-semibold block mb-1">Option D</label>
-                  <input type="text" required value={optD} onChange={(e) => setOptD(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-300 font-semibold block mb-1">Correct Option Index (0 = A, 1 = B, 2 = C, 3 = D)</label>
-                <select
-                  value={correctOptIdx}
-                  onChange={(e) => setCorrectOptIdx(Number(e.target.value))}
-                  className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white"
-                >
-                  <option value={0}>Option A</option>
-                  <option value={1}>Option B</option>
-                  <option value={2}>Option C</option>
-                  <option value={3}>Option D</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
-              >
-                Add Question
-              </button>
-            </form>
-
-            {/* Questions Bank */}
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-3">
-              <h3 className="font-bold text-white text-sm border-b border-slate-800 pb-2">Question Bank ({exam.questions.length} MCQs)</h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {exam.questions.map((q, idx) => (
-                  <div key={q.id} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex justify-between items-start gap-4">
-                    <div>
-                      <span className="text-amber-400 font-mono font-bold mr-2">Q{idx + 1}.</span>
-                      <span className="text-slate-200 font-medium">{q.question}</span>
-                    </div>
-                    <button
-                      onClick={() => onDeleteQuestion(q.id)}
-                      className="text-rose-400 hover:text-rose-300 p-1 shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        {/* EXAMS MANAGEMENT TAB */}
+        {activeTab === 'exams' && (
+          <ExamManagementView
+            exams={exams}
+            courses={courses}
+            examAttempts={examAttempts}
+            onNavigate={onNavigate}
+            onCreateExam={() => {
+              setEditingExamObj(null);
+              setActiveTab('create-exam');
+            }}
+            onEditExam={(ex) => {
+              setEditingExamObj(ex);
+              setActiveTab('create-exam');
+            }}
+            onManageQuestions={(examId) => {
+              setSelectedExamIdForQuestions(examId);
+              setActiveTab('question-builder');
+            }}
+            onPreviewExam={(examId) => {
+              onNavigate('student-exam-live', examId);
+            }}
+            onToggleStatus={onToggleExamStatus}
+            onDeleteExam={onDeleteExam}
+            onShowToast={onShowToast}
+          />
         )}
 
-        {(activeTab === 'payments' || activeTab === 'orders') && (
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4 text-xs">
-            <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">Transaction Receipts & Payment Logs</h3>
-            <div className="space-y-2">
-              {orders.map((o) => (
-                <div key={o.id} className="p-4 bg-slate-950 rounded-xl border border-slate-800 flex justify-between items-center text-xs font-mono">
-                  <div>
-                    <p className="text-amber-400 font-bold">{o.id}</p>
-                    <p className="text-slate-300 font-sans">{o.studentName} ({o.studentEmail})</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-white font-bold">₹{o.amount.toLocaleString('en-IN')}</p>
-                    <p className="text-emerald-400 uppercase text-[10px]">{o.paymentStatus}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* CREATE / EDIT EXAM TAB */}
+        {activeTab === 'create-exam' && (
+          <CreateExamView
+            courses={courses}
+            editingExam={editingExamObj}
+            onSaveExam={(examData) => {
+              const saved = onUpsertExam(examData);
+              setSelectedExamIdForQuestions(saved.id);
+              setActiveTab('question-builder');
+            }}
+            onCancel={() => setActiveTab('exams')}
+            onShowToast={onShowToast}
+          />
         )}
 
-        {activeTab === 'notifs' && (
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (!notifTitle || !notifMsg) return;
-            onBroadcastNotif(notifTitle, notifMsg);
-            setNotifTitle(''); setNotifMsg('');
-            onShowToast('Notification Broadcasted', 'Sent to all enrolled students', 'info');
-          }} className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4 text-xs max-w-xl mx-auto">
-            <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">Broadcast Notification to Students</h3>
-            
-            <div className="space-y-1">
-              <label className="text-slate-300 font-semibold block">Notification Title</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Final Examination Deadline Update"
-                value={notifTitle}
-                onChange={(e) => setNotifTitle(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white"
-              />
-            </div>
+        {/* QUESTION BUILDER BANK TAB */}
+        {(activeTab === 'question-builder' || activeTab === 'exam') && (() => {
+          const targetExam = exams.find(e => e.id === selectedExamIdForQuestions) || exam || exams[0];
+          return (
+            <QuestionBuilderView
+              exam={targetExam}
+              onNavigateBack={() => setActiveTab('exams')}
+              onAddQuestion={onAddQuestionToExam}
+              onUpdateQuestion={onUpdateQuestionInExam}
+              onDeleteQuestion={onDeleteQuestionFromExam}
+              onDuplicateQuestion={onDuplicateQuestionInExam}
+              onShowToast={onShowToast}
+            />
+          );
+        })()}
 
-            <div className="space-y-1">
-              <label className="text-slate-300 font-semibold block">Message</label>
-              <textarea
-                required
-                rows={3}
-                placeholder="Enter announcement details..."
-                value={notifMsg}
-                onChange={(e) => setNotifMsg(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white"
-              ></textarea>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
-            >
-              Send Notification Broadcast
-            </button>
-          </form>
-        )}
-
+        {/* RESULTS TAB */}
         {activeTab === 'results' && (
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4 text-xs">
-            <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">Student Exam Results</h3>
-            <p className="text-slate-300">Detailed examination metrics and pass rates.</p>
-          </div>
+          <AdminResultsView
+            examAttempts={examAttempts}
+            exams={exams}
+            students={students}
+            onDeleteAttempt={onDeleteExamAttempt}
+            onShowToast={onShowToast}
+          />
         )}
 
         {activeTab === 'certificates' && (
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4 text-xs">
-            <h3 className="text-base font-bold text-white border-b border-slate-800 pb-3">Certificates Register</h3>
-            <p className="text-slate-300">1 Digital Certificate issued (ZAA-2026-000001).</p>
-            <button
-              onClick={() => {
-                onRevokeCert();
-                onShowToast('Certificate Revoked', 'Status changed to revoked in ledger', 'info');
-              }}
-              className="px-4 py-2 rounded-xl bg-rose-950/60 text-rose-300 font-bold border border-rose-800"
-            >
-              Revoke Student Certificate
-            </button>
-          </div>
+          <AdminCertificatesView
+            progress={progress}
+            students={students}
+            onRevokeCert={onRevokeCert}
+            onNavigate={onNavigate}
+            onShowToast={onShowToast}
+          />
         )}
 
         {activeTab === 'reports' && (

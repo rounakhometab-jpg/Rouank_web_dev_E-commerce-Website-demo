@@ -43,6 +43,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }) => {
   const [coursesOpen, setCoursesOpen] = useState(true);
   const [lessonsOpen, setLessonsOpen] = useState(true);
+  const [shopOpen, setShopOpen] = useState(true);
 
   const isActive = (tab: string) => currentTab === tab;
 
@@ -296,18 +297,90 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <span>Payments</span>
           </button>
 
-          {/* Orders */}
-          <button
-            onClick={() => handleNav('orders')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
-              isActive('orders')
-                ? 'bg-amber-500 text-slate-950 font-bold shadow'
-                : 'hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4 shrink-0" />
-            <span>Orders</span>
-          </button>
+          {/* SHOP MANAGEMENT Collapsible Group */}
+          <div className="space-y-0.5 pt-1 border-t border-slate-800/80 my-1">
+            <button
+              onClick={() => setShopOpen(!shopOpen)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-800 hover:text-white transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingBag className="w-4 h-4 shrink-0 text-amber-400" />
+                <span className="font-bold text-slate-200">Shop System</span>
+              </div>
+              {shopOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            </button>
+
+            {shopOpen && (
+              <div className="ml-6 space-y-1 border-l border-slate-800 pl-3 pt-1">
+                <button
+                  onClick={() => handleNav('shop-products')}
+                  className={`w-full text-left py-2 px-2.5 rounded-lg flex items-center gap-2 transition-colors ${
+                    isActive('shop-products')
+                      ? 'bg-amber-500/10 text-amber-400 font-bold'
+                      : 'hover:text-white'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>All Products</span>
+                </button>
+                <button
+                  onClick={() => handleNav('shop-add-product')}
+                  className={`w-full text-left py-2 px-2.5 rounded-lg flex items-center gap-2 transition-colors ${
+                    isActive('shop-add-product')
+                      ? 'bg-amber-500/10 text-amber-400 font-bold'
+                      : 'hover:text-white'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Product</span>
+                </button>
+                <button
+                  onClick={() => handleNav('shop-categories')}
+                  className={`w-full text-left py-2 px-2.5 rounded-lg flex items-center gap-2 transition-colors ${
+                    isActive('shop-categories')
+                      ? 'bg-amber-500/10 text-amber-400 font-bold'
+                      : 'hover:text-white'
+                  }`}
+                >
+                  <FolderTree className="w-3.5 h-3.5" />
+                  <span>Categories</span>
+                </button>
+                <button
+                  onClick={() => handleNav('shop-orders')}
+                  className={`w-full text-left py-2 px-2.5 rounded-lg flex items-center gap-2 transition-colors ${
+                    isActive('shop-orders')
+                      ? 'bg-amber-500/10 text-amber-400 font-bold'
+                      : 'hover:text-white'
+                  }`}
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Shop Orders</span>
+                </button>
+                <button
+                  onClick={() => handleNav('shop-coupons')}
+                  className={`w-full text-left py-2 px-2.5 rounded-lg flex items-center gap-2 transition-colors ${
+                    isActive('shop-coupons')
+                      ? 'bg-amber-500/10 text-amber-400 font-bold'
+                      : 'hover:text-white'
+                  }`}
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Coupons & Offers</span>
+                </button>
+                <button
+                  onClick={() => handleNav('shop-inventory')}
+                  className={`w-full text-left py-2 px-2.5 rounded-lg flex items-center gap-2 transition-colors ${
+                    isActive('shop-inventory')
+                      ? 'bg-amber-500/10 text-amber-400 font-bold'
+                      : 'hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Inventory Alert</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Notifications */}
           <button

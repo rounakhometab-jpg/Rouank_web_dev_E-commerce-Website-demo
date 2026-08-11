@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, Course, Exam, ExamAttempt, Certificate, Order, AppNotification, StudentProgress, Module, Lesson } from './types';
+import { User, Course, Exam, ExamAttempt, Certificate, Order, AppNotification, StudentProgress, Module, Lesson, ExamQuestion, ShopProduct, ShopCartItem, ShopOrder, ShopCoupon, ShopCategory, ProductReview, ProductBundle } from './types';
 import { DEMO_STUDENT, DEMO_ADMIN, INITIAL_COURSES, INITIAL_EXAM, INITIAL_CERTIFICATE, INITIAL_ORDERS, INITIAL_NOTIFICATIONS } from './initialData';
+import { INITIAL_PRODUCTS, INITIAL_SHOP_CATEGORIES, INITIAL_SHOP_COUPONS, INITIAL_SHOP_BUNDLES, INITIAL_PRODUCT_REVIEWS, INITIAL_SHOP_ORDERS } from './initialShopData';
+import { evaluateExamSubmission } from './examHelpers';
 
 const STORAGE_KEYS = {
   USER: 'zenfotech_user',
@@ -11,7 +13,17 @@ const STORAGE_KEYS = {
   ORDERS: 'zenfotech_orders',
   NOTIFICATIONS: 'zenfotech_notifications',
   EXAM: 'zenfotech_exam',
+  EXAMS: 'zenfotech_exams',
+  EXAM_ATTEMPTS: 'zenfotech_exam_attempts',
   STUDENTS: 'zenfotech_students',
+  PRODUCTS: 'zenfotech_products',
+  CART: 'zenfotech_cart',
+  WISHLIST: 'zenfotech_wishlist',
+  SHOP_ORDERS: 'zenfotech_shop_orders',
+  COUPONS: 'zenfotech_coupons',
+  CATEGORIES: 'zenfotech_shop_categories',
+  REVIEWS: 'zenfotech_product_reviews',
+  BUNDLES: 'zenfotech_bundles'
 };
 
 // Default initial completed lessons (68% of demo lessons = les_01, les_02, les_03, les_04, les_05, les_06, les_07, les_09, les_11)
@@ -108,6 +120,34 @@ export function useAppStore() {
     }
   });
 
+  const [exams, setExams] = useState<Exam[]>(() => {
+    if (typeof window === 'undefined') return [INITIAL_EXAM];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EXAMS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return [INITIAL_EXAM];
+    } catch {
+      return [INITIAL_EXAM];
+    }
+  });
+
+  const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_PROGRESS.examAttempt ? [DEFAULT_PROGRESS.examAttempt] : [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EXAM_ATTEMPTS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return DEFAULT_PROGRESS.examAttempt ? [DEFAULT_PROGRESS.examAttempt] : [];
+    } catch {
+      return DEFAULT_PROGRESS.examAttempt ? [DEFAULT_PROGRESS.examAttempt] : [];
+    }
+  });
+
   const [students, setStudents] = useState<User[]>(() => {
     if (typeof window === 'undefined') return [DEMO_STUDENT];
     try {
@@ -115,6 +155,111 @@ export function useAppStore() {
       return saved ? JSON.parse(saved) : [DEMO_STUDENT];
     } catch {
       return [DEMO_STUDENT];
+    }
+  });
+
+  // E-COMMERCE SHOP STATES
+  const [products, setProducts] = useState<ShopProduct[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_PRODUCTS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_PRODUCTS;
+    } catch {
+      return INITIAL_PRODUCTS;
+    }
+  });
+
+  const [cart, setCart] = useState<ShopCartItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CART);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [wishlist, setWishlist] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.WISHLIST);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [shopOrders, setShopOrders] = useState<ShopOrder[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_SHOP_ORDERS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SHOP_ORDERS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_SHOP_ORDERS;
+    } catch {
+      return INITIAL_SHOP_ORDERS;
+    }
+  });
+
+  const [coupons, setCoupons] = useState<ShopCoupon[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_SHOP_COUPONS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.COUPONS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_SHOP_COUPONS;
+    } catch {
+      return INITIAL_SHOP_COUPONS;
+    }
+  });
+
+  const [categories, setCategories] = useState<ShopCategory[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_SHOP_CATEGORIES;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_SHOP_CATEGORIES;
+    } catch {
+      return INITIAL_SHOP_CATEGORIES;
+    }
+  });
+
+  const [reviews, setReviews] = useState<ProductReview[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_PRODUCT_REVIEWS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_PRODUCT_REVIEWS;
+    } catch {
+      return INITIAL_PRODUCT_REVIEWS;
+    }
+  });
+
+  const [bundles, setBundles] = useState<ProductBundle[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_SHOP_BUNDLES;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.BUNDLES);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_SHOP_BUNDLES;
+    } catch {
+      return INITIAL_SHOP_BUNDLES;
     }
   });
 
@@ -153,6 +298,456 @@ export function useAppStore() {
   const saveExam = useCallback((newExam: Exam) => {
     setExam(newExam);
     localStorage.setItem(STORAGE_KEYS.EXAM, JSON.stringify(newExam));
+  }, []);
+
+  const saveExams = useCallback((newExams: Exam[]) => {
+    setExams(newExams);
+    localStorage.setItem(STORAGE_KEYS.EXAMS, JSON.stringify(newExams));
+    if (newExams.length > 0) {
+      setExam(newExams[0]);
+      localStorage.setItem(STORAGE_KEYS.EXAM, JSON.stringify(newExams[0]));
+    }
+  }, []);
+
+  const saveProducts = useCallback((newProducts: ShopProduct[]) => {
+    setProducts(newProducts);
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(newProducts));
+  }, []);
+
+  const saveCart = useCallback((newCart: ShopCartItem[]) => {
+    setCart(newCart);
+    localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(newCart));
+  }, []);
+
+  const saveWishlist = useCallback((newWishlist: string[]) => {
+    setWishlist(newWishlist);
+    localStorage.setItem(STORAGE_KEYS.WISHLIST, JSON.stringify(newWishlist));
+  }, []);
+
+  const saveShopOrders = useCallback((newOrders: ShopOrder[]) => {
+    setShopOrders(newOrders);
+    localStorage.setItem(STORAGE_KEYS.SHOP_ORDERS, JSON.stringify(newOrders));
+  }, []);
+
+  const saveCoupons = useCallback((newCoupons: ShopCoupon[]) => {
+    setCoupons(newCoupons);
+    localStorage.setItem(STORAGE_KEYS.COUPONS, JSON.stringify(newCoupons));
+  }, []);
+
+  const saveCategories = useCallback((newCats: ShopCategory[]) => {
+    setCategories(newCats);
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(newCats));
+  }, []);
+
+  const saveReviews = useCallback((newReviews: ProductReview[]) => {
+    setReviews(newReviews);
+    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(newReviews));
+  }, []);
+
+  const saveBundles = useCallback((newBundles: ProductBundle[]) => {
+    setBundles(newBundles);
+    localStorage.setItem(STORAGE_KEYS.BUNDLES, JSON.stringify(newBundles));
+  }, []);
+
+  // CART HANDLERS
+  const addToCart = (product: ShopProduct, quantity = 1, selectedCourseId?: string) => {
+    const existingIdx = cart.findIndex(item => item.product.id === product.id);
+    let updated: ShopCartItem[];
+    if (existingIdx > -1) {
+      updated = cart.map((item, idx) => {
+        if (idx === existingIdx) {
+          const nextQty = item.quantity + quantity;
+          return { ...item, quantity: nextQty > product.stock ? product.stock : nextQty, selectedCourseId: selectedCourseId || item.selectedCourseId };
+        }
+        return item;
+      });
+    } else {
+      updated = [...cart, { product, quantity, selectedCourseId }];
+    }
+    saveCart(updated);
+  };
+
+  const removeFromCart = (productId: string) => {
+    const updated = cart.filter(item => item.product.id !== productId);
+    saveCart(updated);
+  };
+
+  const updateCartQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    const updated = cart.map(item => {
+      if (item.product.id === productId) {
+        return { ...item, quantity: Math.min(quantity, item.product.stock || 999) };
+      }
+      return item;
+    });
+    saveCart(updated);
+  };
+
+  const clearCart = () => {
+    saveCart([]);
+  };
+
+  const toggleWishlist = (productId: string) => {
+    const exists = wishlist.includes(productId);
+    const updated = exists ? wishlist.filter(id => id !== productId) : [...wishlist, productId];
+    saveWishlist(updated);
+  };
+
+  // PRODUCT MANAGEMENT
+  const upsertProduct = (productData: Partial<ShopProduct>): ShopProduct => {
+    let targetId = productData.id;
+    if (!targetId) {
+      targetId = `PROD-${Date.now().toString().slice(-6)}`;
+    }
+    const existing = products.find(p => p.id === targetId);
+
+    const mrpVal = Number(productData.mrp) || Number(productData.price) || 0;
+    const saleVal = Number(productData.price) || Number(productData.salePrice) || mrpVal;
+    const discountPct = mrpVal > saleVal ? Math.round(((mrpVal - saleVal) / mrpVal) * 100) : 0;
+    const stockVal = Number(productData.stock) ?? 10;
+    let stockStatus: ShopProduct['stockStatus'] = productData.stockStatus || 'In Stock';
+    if (stockVal === 0) stockStatus = 'Out of Stock';
+    else if (stockVal <= (productData.lowStockAlert || 5)) stockStatus = 'Low Stock';
+
+    const fullProduct: ShopProduct = {
+      id: targetId,
+      name: productData.name || 'New Product',
+      slug: productData.slug || (productData.name ? productData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `product-${targetId}`),
+      shortDescription: productData.shortDescription || '',
+      description: productData.description || '',
+      categoryId: productData.categoryId || 'books',
+      categoryName: categories.find(c => c.id === productData.categoryId)?.name || 'General',
+      relatedCourseIds: productData.relatedCourseIds || ['all'],
+      type: productData.type || 'Physical',
+      images: productData.images && productData.images.length > 0 ? productData.images : ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80'],
+      price: saleVal,
+      mrp: mrpVal,
+      salePrice: saleVal,
+      discountPercentage: discountPct,
+      sku: productData.sku || `SKU-${targetId}`,
+      stock: stockVal,
+      stockStatus: stockStatus,
+      lowStockAlert: productData.lowStockAlert || 5,
+      bookDetails: productData.bookDetails,
+      accessoryDetails: productData.accessoryDetails,
+      digitalFile: productData.digitalFile,
+      shipping: productData.shipping || { shippingRequired: productData.type !== 'Digital', freeShipping: false },
+      seo: productData.seo,
+      rating: existing?.rating || 5.0,
+      reviewCount: existing?.reviewCount || 0,
+      status: productData.status || 'published',
+      isBestseller: productData.isBestseller ?? false,
+      isNewArrival: productData.isNewArrival ?? true,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    let updatedList: ShopProduct[];
+    if (existing) {
+      updatedList = products.map(p => p.id === targetId ? fullProduct : p);
+    } else {
+      updatedList = [fullProduct, ...products];
+    }
+    saveProducts(updatedList);
+    return fullProduct;
+  };
+
+  const deleteProduct = (productId: string) => {
+    const updated = products.filter(p => p.id !== productId);
+    saveProducts(updated);
+  };
+
+  const duplicateProduct = (productId: string) => {
+    const found = products.find(p => p.id === productId);
+    if (!found) return;
+    const dup: ShopProduct = {
+      ...JSON.parse(JSON.stringify(found)),
+      id: `PROD-${Date.now().toString().slice(-6)}`,
+      name: `${found.name} (Copy)`,
+      sku: `${found.sku}-COPY`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    saveProducts([dup, ...products]);
+  };
+
+  const toggleProductStatus = (productId: string) => {
+    const updated = products.map(p => {
+      if (p.id === productId) {
+        const nextStatus: ShopProduct['status'] = p.status === 'published' ? 'draft' : 'published';
+        return { ...p, status: nextStatus, updatedAt: new Date().toISOString() };
+      }
+      return p;
+    });
+    saveProducts(updated);
+  };
+
+  const updateProductStock = (productId: string, newStock: number) => {
+    const updated = products.map(p => {
+      if (p.id === productId) {
+        let status: ShopProduct['stockStatus'] = 'In Stock';
+        if (newStock === 0) status = 'Out of Stock';
+        else if (newStock <= (p.lowStockAlert || 5)) status = 'Low Stock';
+        return { ...p, stock: newStock, stockStatus: status, updatedAt: new Date().toISOString() };
+      }
+      return p;
+    });
+    saveProducts(updated);
+  };
+
+  // COUPON & ORDER HANDLERS
+  const upsertCoupon = (couponData: Partial<ShopCoupon>): ShopCoupon => {
+    let id = couponData.id;
+    if (!id) id = `COUPON-${Date.now().toString().slice(-6)}`;
+    const existing = coupons.find(c => c.id === id);
+    const full: ShopCoupon = {
+      id,
+      code: couponData.code ? couponData.code.toUpperCase().trim() : 'SAVE10',
+      discountType: couponData.discountType || 'percentage',
+      discountValue: Number(couponData.discountValue) || 10,
+      minOrderAmount: Number(couponData.minOrderAmount) || 0,
+      maxDiscountAmount: couponData.maxDiscountAmount ? Number(couponData.maxDiscountAmount) : undefined,
+      startDate: couponData.startDate || new Date().toISOString().split('T')[0],
+      expiryDate: couponData.expiryDate || '2027-12-31',
+      usageLimit: couponData.usageLimit || 1000,
+      usedCount: existing?.usedCount || 0,
+      applicableCourses: couponData.applicableCourses || ['all'],
+      applicableProducts: couponData.applicableProducts || ['all'],
+      status: couponData.status || 'active'
+    };
+    const updated = existing ? coupons.map(c => c.id === id ? full : c) : [full, ...coupons];
+    saveCoupons(updated);
+    return full;
+  };
+
+  const deleteCoupon = (couponId: string) => {
+    saveCoupons(coupons.filter(c => c.id !== couponId));
+  };
+
+  const applyCoupon = (code: string, subtotal: number, courseIds?: string[]) => {
+    const cleaned = code.trim().toUpperCase();
+    const found = coupons.find(c => c.code.toUpperCase() === cleaned && c.status === 'active');
+    if (!found) {
+      return { success: false, message: 'Invalid or inactive coupon code.' };
+    }
+    if (found.minOrderAmount && subtotal < found.minOrderAmount) {
+      return { success: false, message: `Minimum order amount for code ${cleaned} is ₹${found.minOrderAmount}.` };
+    }
+    let discount = 0;
+    if (found.discountType === 'percentage') {
+      discount = (subtotal * found.discountValue) / 100;
+      if (found.maxDiscountAmount && discount > found.maxDiscountAmount) {
+        discount = found.maxDiscountAmount;
+      }
+    } else {
+      discount = found.discountValue;
+    }
+    return {
+      success: true,
+      message: `Coupon ${cleaned} applied successfully!`,
+      discountAmount: Math.round(discount),
+      coupon: found
+    };
+  };
+
+  const placeShopOrder = (orderData: Partial<ShopOrder>): ShopOrder => {
+    const orderNum = `ZEN-ORD-${(shopOrders.length + 1).toString().padStart(6, '0')}`;
+    const id = orderData.id || orderNum;
+
+    const sub = orderData.subtotal || 0;
+    const disc = orderData.discountAmount || 0;
+    const ship = orderData.shippingFee || 0;
+    const tax = orderData.taxAmount || 0;
+    const tot = orderData.totalAmount || (sub - disc + ship + tax);
+
+    const newOrder: ShopOrder = {
+      id,
+      orderNumber: orderNum,
+      studentId: orderData.studentId || user?.id,
+      customerName: orderData.customerName || user?.name || 'Valued Customer',
+      customerEmail: orderData.customerEmail || user?.email || 'customer@zenfotech.com',
+      customerMobile: orderData.customerMobile || user?.mobile || '',
+      shippingAddress: orderData.shippingAddress,
+      items: orderData.items || [],
+      subtotal: sub,
+      discountAmount: disc,
+      couponCode: orderData.couponCode,
+      shippingFee: ship,
+      taxAmount: tax,
+      totalAmount: tot,
+      paymentMethod: orderData.paymentMethod || 'DEMO PAYMENT',
+      paymentStatus: orderData.paymentStatus || 'paid',
+      orderStatus: orderData.orderStatus || 'Confirmed',
+      isDemo: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    saveShopOrders([newOrder, ...shopOrders]);
+    clearCart();
+
+    // Deduct stock for ordered items
+    const updatedProducts = products.map(p => {
+      const match = newOrder.items.find(i => i.productId === p.id);
+      if (match) {
+        const remaining = Math.max(0, p.stock - match.quantity);
+        let status = p.stockStatus;
+        if (remaining === 0) status = 'Out of Stock';
+        else if (remaining <= (p.lowStockAlert || 5)) status = 'Low Stock';
+        return { ...p, stock: remaining, stockStatus: status };
+      }
+      return p;
+    });
+    saveProducts(updatedProducts);
+
+    return newOrder;
+  };
+
+  const updateShopOrderStatus = (
+    orderId: string,
+    status: ShopOrder['orderStatus'],
+    trackingInfo?: { trackingNumber?: string; shippingPartner?: string; trackingUrl?: string }
+  ) => {
+    const updated = shopOrders.map(o => {
+      if (o.id === orderId) {
+        return {
+          ...o,
+          orderStatus: status,
+          trackingNumber: trackingInfo?.trackingNumber || o.trackingNumber,
+          shippingPartner: trackingInfo?.shippingPartner || o.shippingPartner,
+          trackingUrl: trackingInfo?.trackingUrl || o.trackingUrl,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return o;
+    });
+    saveShopOrders(updated);
+  };
+
+  // CATEGORIES, REVIEWS, BUNDLES
+  const upsertCategory = (catData: Partial<ShopCategory>): ShopCategory => {
+    const id = catData.id || catData.slug || `cat-${Date.now()}`;
+    const existing = categories.find(c => c.id === id);
+    const full: ShopCategory = {
+      id,
+      name: catData.name || 'New Category',
+      slug: catData.slug || catData.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || id,
+      description: catData.description || '',
+      image: catData.image
+    };
+    saveCategories(existing ? categories.map(c => c.id === id ? full : c) : [...categories, full]);
+    return full;
+  };
+
+  const deleteCategory = (catId: string) => {
+    saveCategories(categories.filter(c => c.id !== catId));
+  };
+
+  const addProductReview = (reviewData: Partial<ProductReview>): ProductReview => {
+    const id = `REV-${Date.now().toString().slice(-6)}`;
+    const full: ProductReview = {
+      id,
+      productId: reviewData.productId || '',
+      userName: reviewData.userName || user?.name || 'Anonymous Learner',
+      userEmail: reviewData.userEmail || user?.email || '',
+      rating: reviewData.rating || 5,
+      comment: reviewData.comment || '',
+      createdAt: new Date().toISOString(),
+      verifiedPurchase: true,
+      status: 'approved'
+    };
+    const updated = [full, ...reviews];
+    saveReviews(updated);
+
+    // Update product rating summary
+    const prodReviews = updated.filter(r => r.productId === full.productId && r.status === 'approved');
+    if (prodReviews.length > 0) {
+      const avg = Number((prodReviews.reduce((sum, r) => sum + r.rating, 0) / prodReviews.length).toFixed(1));
+      const updatedProds = products.map(p => {
+        if (p.id === full.productId) {
+          return { ...p, rating: avg, reviewCount: prodReviews.length };
+        }
+        return p;
+      });
+      saveProducts(updatedProds);
+    }
+
+    return full;
+  };
+
+  const updateReviewStatus = (reviewId: string, status: ProductReview['status']) => {
+    saveReviews(reviews.map(r => r.id === reviewId ? { ...r, status } : r));
+  };
+
+  const deleteReview = (reviewId: string) => {
+    saveReviews(reviews.filter(r => r.id !== reviewId));
+  };
+
+  const upsertBundle = (bundleData: Partial<ProductBundle>): ProductBundle => {
+    const id = bundleData.id || `BUNDLE-${Date.now().toString().slice(-6)}`;
+    const existing = bundles.find(b => b.id === id);
+    const full: ProductBundle = {
+      id,
+      title: bundleData.title || 'New Bundle',
+      description: bundleData.description || '',
+      courseId: bundleData.courseId || '',
+      courseTitle: bundleData.courseTitle || '',
+      productIds: bundleData.productIds || [],
+      mrpTotal: Number(bundleData.mrpTotal) || 0,
+      bundlePrice: Number(bundleData.bundlePrice) || 0,
+      savings: Number(bundleData.savings) || 0,
+      image: bundleData.image,
+      status: bundleData.status || 'active'
+    };
+    saveBundles(existing ? bundles.map(b => b.id === id ? full : b) : [...bundles, full]);
+    return full;
+  };
+
+  const deleteBundle = (bundleId: string) => {
+    saveBundles(bundles.filter(b => b.id !== bundleId));
+  };
+
+  const attachProductToCourse = (courseId: string, productId: string) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const existing = c.relatedProductIds || [];
+        if (!existing.includes(productId)) {
+          return { ...c, relatedProductIds: [...existing, productId] };
+        }
+      }
+      return c;
+    });
+    saveCourses(updated);
+
+    // Also update product's relatedCourseIds
+    const updatedProds = products.map(p => {
+      if (p.id === productId) {
+        const rel = p.relatedCourseIds || [];
+        if (!rel.includes(courseId) && !rel.includes('all')) {
+          return { ...p, relatedCourseIds: [...rel, courseId] };
+        }
+      }
+      return p;
+    });
+    saveProducts(updatedProds);
+  };
+
+  const detachProductFromCourse = (courseId: string, productId: string) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId && c.relatedProductIds) {
+        return { ...c, relatedProductIds: c.relatedProductIds.filter(id => id !== productId) };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const saveExamAttempts = useCallback((newAttempts: ExamAttempt[]) => {
+    setExamAttempts(newAttempts);
+    localStorage.setItem(STORAGE_KEYS.EXAM_ATTEMPTS, JSON.stringify(newAttempts));
   }, []);
 
   const saveStudents = useCallback((newStudents: User[]) => {
@@ -256,75 +851,45 @@ export function useAppStore() {
   };
 
   // Exam Submission & Automated Evaluation Engine
-  const submitExam = (answers: Record<string, number>): ExamAttempt => {
-    const questions = exam.questions;
-    let correctCount = 0;
-    let wrongCount = 0;
-    let skippedCount = 0;
+  const submitExam = (answers: Record<string, string | number>, examIdParam?: string): ExamAttempt => {
+    const activeExam = (examIdParam ? exams.find(e => e.id === examIdParam) : null) || exam || INITIAL_EXAM;
+    const activeCourse = courses.find(c => c.id === activeExam.courseId);
 
-    const topicCorrect: Record<string, number> = {};
-    const topicTotal: Record<string, number> = {};
+    const previousAttempts = examAttempts.filter(a => a.examId === activeExam.id && a.studentId === (user?.id || DEMO_STUDENT.id));
+    const attemptNumber = previousAttempts.length + 1;
 
-    questions.forEach(q => {
-      const topic = q.topic || 'General AI';
-      topicTotal[topic] = (topicTotal[topic] || 0) + 1;
-
-      const selectedOpt = answers[q.id];
-      if (selectedOpt === undefined || selectedOpt === null) {
-        skippedCount++;
-      } else if (selectedOpt === q.correctAnswer) {
-        correctCount++;
-        topicCorrect[topic] = (topicCorrect[topic] || 0) + 1;
-      } else {
-        wrongCount++;
-      }
-    });
-
-    const totalQuestions = questions.length;
-    const percentage = Math.round((correctCount / totalQuestions) * 100);
-    const passed = percentage >= exam.passingPercentage;
-
-    const topicScores: Record<string, number> = {};
-    Object.keys(topicTotal).forEach(t => {
-      const correct = topicCorrect[t] || 0;
-      const total = topicTotal[t] || 1;
-      topicScores[t] = Math.round((correct / total) * 100);
-    });
-
-    const attempt: ExamAttempt = {
-      id: `att_${Date.now()}`,
+    const attempt = evaluateExamSubmission({
+      exam: activeExam,
+      answers,
       studentId: user?.id || DEMO_STUDENT.id,
       studentName: user?.name || DEMO_STUDENT.name,
-      examId: exam.id,
-      startedAt: new Date(Date.now() - 22 * 60 * 1000).toISOString(),
-      completedAt: new Date().toISOString(),
-      answers,
-      score: correctCount,
-      totalQuestions,
-      correctCount,
-      wrongCount,
-      skippedCount,
-      percentage,
-      passed,
-      topicScores
-    };
+      studentEmail: user?.email || DEMO_STUDENT.email,
+      courseTitle: activeCourse?.title || 'AI Industry Certification Program',
+      startedAt: new Date(Date.now() - (activeExam.durationMinutes || 30) * 60 * 1000).toISOString(),
+      attemptNumber
+    });
 
-    // If passed, unlock/generate certificate
+    const updatedAttempts = [attempt, ...examAttempts];
+    saveExamAttempts(updatedAttempts);
+
+    const allUserAttempts = updatedAttempts.filter(a => a.studentId === (user?.id || DEMO_STUDENT.id));
+    const passedAttempt = allUserAttempts.find(a => a.passed);
+
     let cert: Certificate | undefined = progress.certificate;
 
-    if (passed) {
+    if (attempt.passed || passedAttempt) {
+      const bestScore = Math.max(...allUserAttempts.map(a => a.percentage));
       cert = {
-        id: `ZAA-2026-${String(Math.floor(Math.random() * 900000) + 100000)}`,
+        id: cert?.id || `ZAA-2026-${String(Math.floor(Math.random() * 900000) + 100000)}`,
         studentId: user?.id || DEMO_STUDENT.id,
         studentName: user?.name || DEMO_STUDENT.name,
-        courseTitle: 'AI Industry Certification Program',
-        issueDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+        courseTitle: activeCourse?.title || 'AI Industry Certification Program',
+        issueDate: cert?.issueDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
         status: 'valid',
-        scorePercentage: percentage,
+        scorePercentage: bestScore,
         verificationUrl: `https://zenfotech.com/verify`
       };
     } else {
-      // Locked state if failed
       cert = cert ? { ...cert, status: 'locked' } : undefined;
     }
 
@@ -334,20 +899,160 @@ export function useAppStore() {
       certificate: cert
     });
 
-    // Notify
     const newNotif: AppNotification = {
       id: `notif_${Date.now()}`,
-      title: passed ? 'Examination Passed!' : 'Examination Attempted',
-      message: passed
-        ? `Congratulations! You scored ${percentage}% and passed the final examination. Certificate generated.`
-        : `You scored ${percentage}%. Passing criteria is ${exam.passingPercentage}%. You can retake the exam.`,
+      title: attempt.passed ? 'Examination Passed!' : 'Examination Attempted',
+      message: attempt.passed
+        ? `Congratulations! You scored ${attempt.percentage}% and passed "${activeExam.title}". Certificate unlocked!`
+        : `You scored ${attempt.percentage}% on "${activeExam.title}". Passing threshold is ${activeExam.passingPercentage}%. You can retake the exam.`,
       createdAt: new Date().toISOString(),
       read: false,
-      type: passed ? 'certificate' : 'warning'
+      type: attempt.passed ? 'certificate' : 'warning'
     };
     saveNotifications([newNotif, ...notifications]);
 
     return attempt;
+  };
+
+  // Exam Management CRUD
+  const upsertExam = (examData: Partial<Exam> & { title: string; courseId: string }): Exam => {
+    const existingIdx = exams.findIndex(e => e.id === examData.id);
+    let targetExam: Exam;
+
+    if (existingIdx >= 0) {
+      targetExam = {
+        ...exams[existingIdx],
+        ...examData,
+        totalQuestions: examData.questions ? examData.questions.length : exams[existingIdx].questions.length,
+        updatedAt: new Date().toISOString()
+      };
+      const updatedList = [...exams];
+      updatedList[existingIdx] = targetExam;
+      saveExams(updatedList);
+    } else {
+      const newId = examData.id || `EXAM-${String(exams.length + 1).padStart(6, '0')}`;
+      targetExam = {
+        id: newId,
+        title: examData.title,
+        courseId: examData.courseId,
+        moduleId: examData.moduleId,
+        description: examData.description || '',
+        durationMinutes: examData.durationMinutes || 30,
+        totalQuestions: examData.questions ? examData.questions.length : 20,
+        passingPercentage: examData.passingPercentage || 60,
+        maxAttempts: examData.maxAttempts ?? 1,
+        examType: examData.examType || 'Final Examination',
+        status: examData.status || 'published',
+        questions: examData.questions || INITIAL_EXAM.questions,
+        randomizeQuestions: examData.randomizeQuestions ?? false,
+        randomizeOptions: examData.randomizeOptions ?? false,
+        negativeMarking: examData.negativeMarking ?? false,
+        negativeMarksPerWrong: examData.negativeMarksPerWrong ?? 0.25,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      saveExams([targetExam, ...exams]);
+    }
+    return targetExam;
+  };
+
+  const deleteExam = (examId: string) => {
+    const updated = exams.filter(e => e.id !== examId);
+    saveExams(updated);
+  };
+
+  const toggleExamStatus = (examId: string) => {
+    const updated = exams.map(e => {
+      if (e.id === examId) {
+        return { ...e, status: (e.status === 'published' ? 'draft' : 'published') as 'draft' | 'published' };
+      }
+      return e;
+    });
+    saveExams(updated);
+  };
+
+  const addQuestionToExam = (examId: string, qData: Omit<ExamQuestion, 'id'>) => {
+    const newQ: ExamQuestion = {
+      ...qData,
+      id: `eq_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+    };
+    const updatedExams = exams.map(e => {
+      if (e.id === examId || (!examId && e.id === exam.id)) {
+        const questions = [...(e.questions || []), newQ];
+        return {
+          ...e,
+          questions,
+          totalQuestions: questions.length,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return e;
+    });
+    saveExams(updatedExams);
+  };
+
+  const updateQuestionInExam = (examId: string, questionId: string, qData: Partial<ExamQuestion>) => {
+    const updatedExams = exams.map(e => {
+      if (e.id === examId || (!examId && e.id === exam.id)) {
+        const questions = (e.questions || []).map(q => q.id === questionId ? { ...q, ...qData } : q);
+        return {
+          ...e,
+          questions,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return e;
+    });
+    saveExams(updatedExams);
+  };
+
+  const deleteQuestionFromExam = (examId: string, questionId: string) => {
+    const updatedExams = exams.map(e => {
+      if (e.id === examId || (!examId && e.id === exam.id)) {
+        const questions = (e.questions || []).filter(q => q.id !== questionId);
+        return {
+          ...e,
+          questions,
+          totalQuestions: questions.length,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return e;
+    });
+    saveExams(updatedExams);
+  };
+
+  const duplicateQuestionInExam = (examId: string, questionId: string) => {
+    const targetExam = exams.find(e => e.id === examId) || exam;
+    const foundQ = targetExam.questions.find(q => q.id === questionId);
+    if (!foundQ) return;
+
+    const dupQ: ExamQuestion = {
+      ...foundQ,
+      id: `eq_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      question: `${foundQ.question} (Copy)`
+    };
+
+    const updatedExams = exams.map(e => {
+      if (e.id === targetExam.id) {
+        const idx = e.questions.findIndex(q => q.id === questionId);
+        const questions = [...e.questions];
+        questions.splice(idx + 1, 0, dupQ);
+        return {
+          ...e,
+          questions,
+          totalQuestions: questions.length,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return e;
+    });
+    saveExams(updatedExams);
+  };
+
+  const deleteExamAttempt = (attemptId: string) => {
+    const updated = examAttempts.filter(a => a.id !== attemptId);
+    saveExamAttempts(updated);
   };
 
   // Payment Demo Flow
@@ -780,6 +1485,14 @@ export function useAppStore() {
     setNotifications(INITIAL_NOTIFICATIONS);
     setExam(INITIAL_EXAM);
     setStudents([DEMO_STUDENT]);
+    setProducts(INITIAL_PRODUCTS);
+    setCart([]);
+    setWishlist([]);
+    setShopOrders(INITIAL_SHOP_ORDERS);
+    setCoupons(INITIAL_SHOP_COUPONS);
+    setCategories(INITIAL_SHOP_CATEGORIES);
+    setReviews(INITIAL_PRODUCT_REVIEWS);
+    setBundles(INITIAL_SHOP_BUNDLES);
   };
 
   return {
@@ -790,13 +1503,31 @@ export function useAppStore() {
     orders,
     notifications,
     exam,
+    exams,
+    examAttempts,
     students,
+    products,
+    cart,
+    wishlist,
+    shopOrders,
+    coupons,
+    categories,
+    reviews,
+    bundles,
     login,
     register,
     logout,
     markLessonComplete,
     submitQuiz,
     submitExam,
+    upsertExam,
+    deleteExam,
+    toggleExamStatus,
+    addQuestionToExam,
+    updateQuestionInExam,
+    deleteQuestionFromExam,
+    duplicateQuestionInExam,
+    deleteExamAttempt,
     processDemoPayment,
     verifyCertificate,
     markNotificationRead,
@@ -819,6 +1550,30 @@ export function useAppStore() {
     duplicateLesson,
     toggleLessonStatus,
     importCoursesAndLessons,
-    exportCoursesAndLessons
+    exportCoursesAndLessons,
+    addToCart,
+    removeFromCart,
+    updateCartQuantity,
+    clearCart,
+    toggleWishlist,
+    upsertProduct,
+    deleteProduct,
+    duplicateProduct,
+    toggleProductStatus,
+    updateProductStock,
+    upsertCoupon,
+    deleteCoupon,
+    applyCoupon,
+    placeShopOrder,
+    updateShopOrderStatus,
+    upsertCategory,
+    deleteCategory,
+    addProductReview,
+    updateReviewStatus,
+    deleteReview,
+    upsertBundle,
+    deleteBundle,
+    attachProductToCourse,
+    detachProductFromCourse
   };
 }

@@ -2,16 +2,26 @@
 
 import React, { useState } from 'react';
 import { Course } from '../lib/types';
-import { BookOpen, Clock, Award, CheckCircle2, ChevronDown, ChevronUp, Star, ShieldCheck, Lock, PlayCircle, HelpCircle } from 'lucide-react';
+import { useAppStore } from '../lib/store';
+import { BookOpen, Clock, Award, CheckCircle2, ChevronDown, ChevronUp, Star, ShieldCheck, Lock, PlayCircle, HelpCircle, ShoppingBag, ArrowRight, Sparkles, Truck, Check } from 'lucide-react';
 
 interface CourseDetailsViewProps {
   course: Course;
-  onNavigate: (view: string, param?: string) => void;
+  onNavigate: (view: string, param?: any) => void;
 }
 
 export const CourseDetailsView: React.FC<CourseDetailsViewProps> = ({ course, onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'requirements' | 'certification' | 'faq'>('overview');
+  const { products, addToCart } = useAppStore();
+  const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'shop' | 'requirements' | 'certification' | 'faq'>('overview');
   const [openModuleId, setOpenModuleId] = useState<string>('mod_01');
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Find products linked to this course
+  const courseProducts = products.filter(p => 
+    p.relatedCourseIds.includes('all') || 
+    p.relatedCourseIds.includes(course.id) ||
+    (course.relatedProductIds && course.relatedProductIds.includes(p.id))
+  );
 
   const toggleModule = (id: string) => {
     setOpenModuleId(openModuleId === id ? '' : id);
@@ -101,11 +111,21 @@ export const CourseDetailsView: React.FC<CourseDetailsViewProps> = ({ course, on
         </div>
       </div>
 
+      {/* Toast Alert */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[300] bg-emerald-500 text-slate-950 px-5 py-3 rounded-2xl font-bold shadow-2xl flex items-center gap-3 animate-bounce">
+          <Check className="w-5 h-5 bg-slate-950 text-emerald-400 rounded-full p-0.5" />
+          <span>{toast}</span>
+          <button onClick={() => onNavigate('cart')} className="ml-2 underline text-xs font-black">View Cart</button>
+        </div>
+      )}
+
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto text-sm font-semibold pb-1">
         {[
           { id: 'overview', label: 'Overview' },
           { id: 'curriculum', label: 'Curriculum & Modules' },
+          { id: 'shop', label: `Books & Accessories (${courseProducts.length})` },
           { id: 'requirements', label: 'Requirements' },
           { id: 'certification', label: 'Certification' },
           { id: 'faq', label: 'FAQ' },
@@ -113,13 +133,14 @@ export const CourseDetailsView: React.FC<CourseDetailsViewProps> = ({ course, on
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-3 rounded-t-xl shrink-0 transition-colors ${
+            className={`px-4 py-3 rounded-t-xl shrink-0 transition-colors flex items-center gap-1.5 ${
               activeTab === tab.id
                 ? 'bg-slate-900 text-amber-400 border-t-2 border-amber-500 font-bold'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            {tab.label}
+            {tab.id === 'shop' && <ShoppingBag className="w-4 h-4 text-amber-400" />}
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
@@ -204,6 +225,74 @@ export const CourseDetailsView: React.FC<CourseDetailsViewProps> = ({ course, on
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Books & Accessories Tab */}
+        {activeTab === 'shop' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800">
+              <div>
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Official Course Learning Resources</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Enhance your learning with physical textbooks, practice workbooks, and custom study kits.
+                </p>
+              </div>
+
+              <button
+                onClick={() => onNavigate('shop')}
+                className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shrink-0"
+              >
+                <span>Browse Full Store</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {courseProducts.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-6 text-center">No specific physical books linked to this course yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {courseProducts.map((p) => (
+                  <div key={p.id} className="bg-slate-950 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 flex flex-col justify-between transition-all">
+                    <div>
+                      <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-slate-900 mb-3">
+                        <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-black uppercase">
+                          {p.categoryName}
+                        </span>
+                      </div>
+
+                      <h4 className="font-extrabold text-white text-sm line-clamp-1">{p.name}</h4>
+                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">{p.shortDescription}</p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-base font-black text-white">₹{p.price.toLocaleString('en-IN')}</span>
+                        {p.mrp > p.price && (
+                          <span className="text-[10px] text-slate-500 line-through ml-1.5 font-bold">₹{p.mrp.toLocaleString('en-IN')}</span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          addToCart(p, 1, course.id);
+                          setToast(`Added "${p.name}" to cart!`);
+                          setTimeout(() => setToast(null), 3000);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1 shadow"
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        <span>Add</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

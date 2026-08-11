@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Course } from '../lib/types';
+import { SafeImage } from '../components/ui/SafeImage';
 import { Search, Filter, BookOpen, Clock, Award, Star, CheckCircle2, ChevronRight } from 'lucide-react';
 
 interface CoursesViewProps {
@@ -80,16 +81,30 @@ export const CoursesView: React.FC<CoursesViewProps> = ({ courses, onNavigate })
                 isFlagship ? 'border-amber-500/50 shadow-xl shadow-amber-500/5' : 'border-slate-800'
               }`}
             >
-              <div className="p-6 space-y-4">
-                {/* Badge & Level */}
-                <div className="flex items-center justify-between">
+              {/* 16:9 Course Thumbnail Header */}
+              <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-950">
+                <SafeImage
+                  src={course.thumbnail}
+                  alt={course.title}
+                  type="course"
+                  aspectRatio="16:9"
+                  objectFit="cover"
+                />
+                <div className="absolute top-3 left-3 z-10 flex gap-2">
                   <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                    isFlagship ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'
+                    isFlagship ? 'bg-amber-500 text-slate-950 shadow-md' : 'bg-slate-900/90 text-slate-300 border border-slate-700'
                   }`}>
                     {course.badge}
                   </span>
-                  <span className="text-xs text-amber-400 font-semibold">{course.level}</span>
                 </div>
+              </div>
+
+              <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="text-amber-400 font-semibold">{course.category}</span>
+                    <span className="text-slate-400 font-semibold">{course.level}</span>
+                  </div>
 
                 {/* Title & Description */}
                 <div>
