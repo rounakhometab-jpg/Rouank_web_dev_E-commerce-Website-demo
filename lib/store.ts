@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, Course, Exam, ExamAttempt, Certificate, Order, AppNotification, StudentProgress } from './types';
+import { User, Course, Exam, ExamAttempt, Certificate, Order, AppNotification, StudentProgress, Module, Lesson } from './types';
 import { DEMO_STUDENT, DEMO_ADMIN, INITIAL_COURSES, INITIAL_EXAM, INITIAL_CERTIFICATE, INITIAL_ORDERS, INITIAL_NOTIFICATIONS } from './initialData';
 
 const STORAGE_KEYS = {
@@ -471,6 +471,305 @@ export function useAppStore() {
     }
   };
 
+  // Course, Module & Lesson Management CRUD
+  const upsertCourse = (courseData: Course) => {
+    const existingIndex = courses.findIndex(c => c.id === courseData.id);
+    const updatedCourse: Course = {
+      ...courseData,
+      status: courseData.status || 'published',
+      updatedAt: new Date().toISOString(),
+      createdAt: courseData.createdAt || new Date().toISOString(),
+      modules: courseData.modules || []
+    };
+
+    let updatedList: Course[];
+    if (existingIndex >= 0) {
+      updatedList = [...courses];
+      updatedList[existingIndex] = updatedCourse;
+    } else {
+      updatedList = [updatedCourse, ...courses];
+    }
+
+    saveCourses(updatedList);
+    return updatedCourse;
+  };
+
+  const deleteCourse = (courseId: string) => {
+    const updated = courses.filter(c => c.id !== courseId);
+    saveCourses(updated);
+  };
+
+  const duplicateCourse = (courseId: string): Course | null => {
+    const original = courses.find(c => c.id === courseId);
+    if (!original) return null;
+
+    const newCourseId = `course_${Date.now()}`;
+    const duplicated: Course = {
+      ...JSON.parse(JSON.stringify(original)),
+      id: newCourseId,
+      title: `${original.title} Copy`,
+      badge: 'Duplicated Program',
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      seo: {
+        ...(original.seo || {}),
+        slug: `${original.seo?.slug || 'course'}-copy-${Date.now().toString().slice(-4)}`
+      }
+    };
+
+    // re-id modules and lessons
+    duplicated.modules = (duplicated.modules || []).map((m, mIdx) => ({
+      ...m,
+      id: `mod_${Date.now()}_${mIdx}`,
+      courseId: newCourseId,
+      lessons: (m.lessons || []).map((l, lIdx) => ({
+        ...l,
+        id: `les_${Date.now()}_${mIdx}_${lIdx}`,
+        courseId: newCourseId,
+        moduleId: `mod_${Date.now()}_${mIdx}`
+      }))
+    }));
+
+    saveCourses([duplicated, ...courses]);
+    return duplicated;
+  };
+
+  const toggleCourseStatus = (courseId: string) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const nextStatus = c.status === 'published' ? 'draft' : 'published';
+        return { ...c, status: nextStatus as 'draft' | 'published', updatedAt: new Date().toISOString() };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const addOrUpdateModule = (courseId: string, moduleData: Partial<Module> & { title: string }) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const modules = [...(c.modules || [])];
+        if (moduleData.id) {
+          const modIndex = modules.findIndex(m => m.id === moduleData.id);
+          if (modIndex >= 0) {
+            modules[modIndex] = {
+              ...modules[modIndex],
+              ...moduleData,
+              title: moduleData.title
+            };
+          }
+        } else {
+          const newMod: Module = {
+            id: `mod_${Date.now()}`,
+            courseId,
+            order: modules.length + 1,
+            moduleNumber: modules.length + 1,
+            title: moduleData.title,
+            description: moduleData.description || '',
+            estimatedHours: moduleData.estimatedHours || 2,
+            status: moduleData.status || 'published',
+            lessons: []
+          };
+          modules.push(newMod);
+        }
+        return { ...c, modules, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const deleteModule = (courseId: string, moduleId: string) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const modules = (c.modules || []).filter(m => m.id !== moduleId);
+        return { ...c, modules, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const reorderModules = (courseId: string, moduleIds: string[]) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const currentMods = c.modules || [];
+        const reordered: Module[] = [];
+        moduleIds.forEach((id, index) => {
+          const found = currentMods.find(m => m.id === id);
+          if (found) {
+            reordered.push({ ...found, order: index + 1, moduleNumber: index + 1 });
+          }
+        });
+        return { ...c, modules: reordered, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const addOrUpdateLesson = (courseId: string, moduleId: string, lessonData: Partial<Lesson> & { title: string }) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const modules = (c.modules || []).map(m => {
+          if (m.id === moduleId) {
+            const lessons = [...(m.lessons || [])];
+            if (lessonData.id) {
+              const lesIdx = lessons.findIndex(l => l.id === lessonData.id);
+              if (lesIdx >= 0) {
+                lessons[lesIdx] = {
+                  ...lessons[lesIdx],
+                  ...lessonData,
+                  title: lessonData.title,
+                  updatedAt: new Date().toISOString()
+                };
+              }
+            } else {
+              const newLesson: Lesson = {
+                id: `les_${Date.now()}`,
+                courseId,
+                moduleId,
+                lessonNumber: lessons.length + 1,
+                title: lessonData.title,
+                shortDescription: lessonData.shortDescription || '',
+                summary: lessonData.shortDescription || lessonData.summary || '',
+                contentMarkdown: lessonData.contentMarkdown || lessonData.content || '',
+                content: lessonData.content || lessonData.contentMarkdown || '',
+                durationMinutes: lessonData.durationMinutes || 15,
+                learningHours: lessonData.learningHours || 0.25,
+                type: lessonData.type || 'video',
+                videoUrl: lessonData.videoUrl,
+                videoFileName: lessonData.videoFileName,
+                videoFileSize: lessonData.videoFileSize,
+                resources: lessonData.resources || [],
+                attachments: lessonData.attachments || [],
+                images: lessonData.images || [],
+                quiz: lessonData.quiz,
+                settings: lessonData.settings || {
+                  isFreePreview: false,
+                  allowComments: true,
+                  isRequired: true,
+                  sequentialLearning: true,
+                  downloadResources: true,
+                  certificateRequirement: true
+                },
+                status: lessonData.status || 'published',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+              lessons.push(newLesson);
+            }
+            return { ...m, lessons };
+          }
+          return m;
+        });
+
+        // Recalculate lesson count and learning hours
+        const allLessons = modules.flatMap(m => m.lessons || []);
+        const totalMin = allLessons.reduce((acc, l) => acc + (l.durationMinutes || 15), 0);
+        const totalHours = Math.ceil(totalMin / 60) || 1;
+
+        return {
+          ...c,
+          modules,
+          lessonCount: allLessons.length,
+          learningHours: totalHours,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const deleteLesson = (courseId: string, moduleId: string, lessonId: string) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const modules = (c.modules || []).map(m => {
+          if (m.id === moduleId) {
+            const lessons = (m.lessons || []).filter(l => l.id !== lessonId);
+            return { ...m, lessons };
+          }
+          return m;
+        });
+
+        const allLessons = modules.flatMap(m => m.lessons || []);
+        const totalMin = allLessons.reduce((acc, l) => acc + (l.durationMinutes || 15), 0);
+
+        return {
+          ...c,
+          modules,
+          lessonCount: allLessons.length,
+          learningHours: Math.ceil(totalMin / 60) || 1,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const duplicateLesson = (courseId: string, moduleId: string, lessonId: string) => {
+    let sourceLesson: Lesson | null = null;
+    courses.forEach(c => {
+      if (c.id === courseId) {
+        c.modules.forEach(m => {
+          if (m.id === moduleId) {
+            const found = m.lessons.find(l => l.id === lessonId);
+            if (found) sourceLesson = found;
+          }
+        });
+      }
+    });
+
+    if (!sourceLesson) return;
+
+    const dup: Lesson = {
+      ...JSON.parse(JSON.stringify(sourceLesson)),
+      id: `les_${Date.now()}`,
+      title: `${(sourceLesson as Lesson).title} Copy`,
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    addOrUpdateLesson(courseId, moduleId, dup);
+  };
+
+  const toggleLessonStatus = (courseId: string, moduleId: string, lessonId: string) => {
+    const updated = courses.map(c => {
+      if (c.id === courseId) {
+        const modules = (c.modules || []).map(m => {
+          if (m.id === moduleId) {
+            const lessons = (m.lessons || []).map(l => {
+              if (l.id === lessonId) {
+                const nextStatus = l.status === 'published' ? 'draft' : 'published';
+                return { ...l, status: nextStatus as 'draft' | 'published', updatedAt: new Date().toISOString() };
+              }
+              return l;
+            });
+            return { ...m, lessons };
+          }
+          return m;
+        });
+        return { ...c, modules, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    });
+    saveCourses(updated);
+  };
+
+  const importCoursesAndLessons = (importedData: Course[]) => {
+    if (!Array.isArray(importedData)) return false;
+    saveCourses(importedData);
+    return true;
+  };
+
+  const exportCoursesAndLessons = () => {
+    return JSON.stringify(courses, null, 2);
+  };
+
   // Reset Demo
   const resetDemo = () => {
     localStorage.clear();
@@ -507,6 +806,19 @@ export function useAppStore() {
     broadcastNotification,
     toggleStudentStatus,
     revokeCertificate,
-    resetDemo
+    resetDemo,
+    upsertCourse,
+    deleteCourse,
+    duplicateCourse,
+    toggleCourseStatus,
+    addOrUpdateModule,
+    deleteModule,
+    reorderModules,
+    addOrUpdateLesson,
+    deleteLesson,
+    duplicateLesson,
+    toggleLessonStatus,
+    importCoursesAndLessons,
+    exportCoursesAndLessons
   };
 }

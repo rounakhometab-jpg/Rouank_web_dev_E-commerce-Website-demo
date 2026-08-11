@@ -49,7 +49,20 @@ export default function Page() {
     broadcastNotification,
     toggleStudentStatus,
     revokeCertificate,
-    resetDemo
+    resetDemo,
+    upsertCourse,
+    deleteCourse,
+    duplicateCourse,
+    toggleCourseStatus,
+    addOrUpdateModule,
+    deleteModule,
+    reorderModules,
+    addOrUpdateLesson,
+    deleteLesson,
+    duplicateLesson,
+    toggleLessonStatus,
+    importCoursesAndLessons,
+    exportCoursesAndLessons
   } = useAppStore();
 
   const [currentView, setCurrentView] = useState<string>('home');
@@ -327,6 +340,28 @@ export default function Page() {
             }}
             onNavigate={handleNavigate}
             onShowToast={showToast}
+            onUpsertCourse={upsertCourse}
+            onDeleteCourse={deleteCourse}
+            onDuplicateCourse={duplicateCourse}
+            onToggleCourseStatus={toggleCourseStatus}
+            onAddOrUpdateModule={addOrUpdateModule}
+            onDeleteModule={deleteModule}
+            onReorderModules={reorderModules}
+            onAddOrUpdateLesson={addOrUpdateLesson}
+            onDeleteLesson={deleteLesson}
+            onDuplicateLesson={duplicateLesson}
+            onToggleLessonStatus={toggleLessonStatus}
+            onImportCourses={(jsonStr: string) => {
+              try {
+                const parsed = JSON.parse(jsonStr);
+                if (Array.isArray(parsed)) {
+                  importCoursesAndLessons(parsed);
+                }
+              } catch (err) {
+                console.error("Error parsing courses JSON:", err);
+              }
+            }}
+            onExportCourses={exportCoursesAndLessons}
           />
         )}
 

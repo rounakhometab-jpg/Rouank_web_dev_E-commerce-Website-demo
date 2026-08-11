@@ -11,17 +11,60 @@ export interface User {
   status: 'active' | 'suspended';
 }
 
+export interface LessonAttachment {
+  id: string;
+  name: string;
+  type: string; // PDF, PPT, DOC, ZIP, Image, External Link
+  size?: string;
+  url: string;
+}
+
+export interface LessonResource {
+  name: string;
+  type?: string;
+  url: string;
+  size?: string;
+}
+
+export interface LessonSettings {
+  isFreePreview?: boolean;
+  allowComments?: boolean;
+  isRequired?: boolean;
+  sequentialLearning?: boolean;
+  downloadResources?: boolean;
+  certificateRequirement?: boolean;
+}
+
 export interface Lesson {
   id: string;
+  courseId?: string;
   moduleId: string;
+  lessonNumber?: number;
   title: string;
+  shortDescription?: string;
   durationMinutes: number;
-  learningHours: number;
-  type: 'video' | 'reading' | 'interactive';
+  learningHours?: number;
+  duration?: string;
+  type: 'video' | 'reading' | 'interactive' | 'article' | 'pdf' | 'quiz' | 'assignment' | 'live_class';
   videoUrl?: string;
-  summary: string;
-  contentMarkdown: string;
-  resources?: { name: string; url: string }[];
+  videoFileName?: string;
+  videoFileSize?: string;
+  summary?: string;
+  contentMarkdown?: string;
+  content?: string;
+  resources?: LessonResource[];
+  attachments?: LessonAttachment[];
+  images?: string[];
+  quiz?: {
+    id: string;
+    title: string;
+    passingScore: number;
+    questions: QuizQuestion[];
+  };
+  settings?: LessonSettings;
+  status?: 'draft' | 'published';
+  createdAt?: string;
+  updatedAt?: string;
   isCompleted?: boolean;
 }
 
@@ -37,8 +80,11 @@ export interface Module {
   id: string;
   courseId: string;
   order: number;
+  moduleNumber?: number;
   title: string;
   description: string;
+  estimatedHours?: number;
+  status?: 'draft' | 'published';
   lessons: Lesson[];
   quiz?: {
     id: string;
@@ -48,24 +94,51 @@ export interface Module {
   };
 }
 
+export interface CourseInstructor {
+  name: string;
+  bio?: string;
+  photo?: string;
+}
+
+export interface CourseSEO {
+  title?: string;
+  description?: string;
+  keywords?: string;
+  slug?: string;
+}
+
 export interface Course {
   id: string;
   title: string;
+  shortDescription?: string;
   tagline: string;
   badge: string;
   description: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Industry Ready';
+  category?: string;
+  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Industry Ready' | 'All Levels';
+  language?: string;
+  thumbnail?: string;
   lessonCount: number;
   learningHours: number;
+  duration?: string;
   price: number;
   originalPrice: number;
+  discountPrice?: number;
   discountPercentage: number;
   rating: number;
   enrolledCount: number;
+  accessType?: 'lifetime' | 'limited';
+  accessDuration?: string;
+  objectives?: string[];
   modules: Module[];
   features: string[];
   requirements: string[];
-  targetAudience: string[];
+  targetAudience?: string[];
+  instructor?: CourseInstructor;
+  seo?: CourseSEO;
+  status?: 'draft' | 'published' | 'archived';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ExamQuestion {
